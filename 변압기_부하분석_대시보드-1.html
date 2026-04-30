@@ -1,0 +1,1698 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>전기실 변압기 부하 분석 대시보드</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.10.0/lib/msal-browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg-base:#f4f6f9;
+  --bg-surface:#ffffff;
+  --bg-card:#ffffff;
+  --bg-elevated:#f0f2f5;
+  --border:#e2e6ed;
+  --border-light:#d0d6e0;
+  --text-primary:#1a2332;
+  --text-secondary:#4a5a72;
+  --text-muted:#8a9ab4;
+  --accent-blue:#1d6fbf;
+  --accent-blue-bright:#1d6fbf;
+  --accent-blue-glow:rgba(29,111,191,0.08);
+  --green:#1a8a3a;
+  --green-bg:rgba(26,138,58,0.08);
+  --green-border:rgba(26,138,58,0.2);
+  --blue:#1d6fbf;
+  --blue-bg:rgba(29,111,191,0.08);
+  --blue-border:rgba(29,111,191,0.2);
+  --amber:#b07010;
+  --amber-bg:rgba(176,112,16,0.08);
+  --amber-border:rgba(176,112,16,0.2);
+  --red:#bf3030;
+  --red-bg:rgba(191,48,48,0.08);
+  --red-border:rgba(191,48,48,0.2);
+  --font-data:'JetBrains Mono',monospace;
+  --font-ui:'Noto Sans KR',sans-serif;
+  --sidebar-w:220px;
+  --header-h:56px;
+}
+html,body{height:100%;background:var(--bg-base);color:var(--text-primary);font-family:var(--font-ui);font-size:14px;line-height:1.6;overflow-x:hidden}
+/* ─── LAYOUT ─── */
+.layout{display:flex;min-height:100vh}
+.sidebar{width:var(--sidebar-w);background:var(--bg-surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100}
+.main{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column;min-height:100vh}
+/* ─── SIDEBAR ─── */
+.sidebar-logo{padding:18px 20px 16px;border-bottom:1px solid var(--border)}
+.sidebar-logo .logo-icon{width:32px;height:32px;background:var(--accent-blue-glow);border:1px solid var(--accent-blue);border-radius:6px;display:flex;align-items:center;justify-content:center;margin-bottom:10px}
+.sidebar-logo .logo-icon svg{width:18px;height:18px;stroke:var(--accent-blue-bright)}
+.sidebar-logo h1{font-size:13px;font-weight:700;color:var(--text-primary);letter-spacing:-.01em;line-height:1.3}
+.sidebar-logo p{font-size:10px;color:var(--text-muted);margin-top:2px;font-family:var(--font-data)}
+.sidebar-section{padding:16px 12px 8px;font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);font-family:var(--font-data)}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 16px;margin:0 8px;border-radius:6px;cursor:pointer;font-size:13px;color:var(--text-secondary);transition:all .15s;border:1px solid transparent}
+.nav-item:hover{background:var(--bg-elevated);color:var(--text-primary)}
+.nav-item.active{background:var(--accent-blue-glow);color:var(--accent-blue);border-color:var(--accent-blue);font-weight:500}
+.nav-item svg{width:15px;height:15px;stroke:currentColor;flex-shrink:0}
+.sidebar-footer{margin-top:auto;padding:14px 16px;border-top:1px solid var(--border);font-size:10px;color:var(--text-muted);font-family:var(--font-data)}
+.sidebar-footer span{display:block;margin-bottom:2px}
+/* ─── HEADER ─── */
+.header{height:var(--header-h);background:var(--bg-surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;gap:16px;position:sticky;top:0;z-index:50}
+.header-title{font-size:15px;font-weight:700;color:var(--text-primary)}
+.header-sep{width:1px;height:20px;background:var(--border-light)}
+.header-badge{font-size:10px;font-family:var(--font-data);padding:3px 8px;border-radius:4px;background:var(--accent-blue-glow);color:var(--accent-blue);border:1px solid var(--accent-blue);letter-spacing:.04em}
+.header-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.btn-export{padding:6px 14px;font-size:12px;font-family:var(--font-ui);background:transparent;border:1px solid var(--border-light);color:var(--text-secondary);border-radius:6px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:6px}
+.btn-export:hover{background:var(--bg-elevated);color:var(--text-primary);border-color:var(--accent-blue)}
+.btn-export svg{width:13px;height:13px;stroke:currentColor}
+/* ─── CONTENT ─── */
+.content{padding:20px 24px;flex:1}
+/* ─── YEAR TABS ─── */
+.year-bar{display:flex;align-items:center;gap:6px;margin-bottom:20px;flex-wrap:wrap}
+.year-label{font-size:10px;font-family:var(--font-data);color:var(--text-muted);margin-right:4px;letter-spacing:.06em;text-transform:uppercase}
+.year-btn{padding:5px 14px;font-size:12px;font-family:var(--font-data);border:1px solid var(--border-light);background:transparent;color:var(--text-secondary);border-radius:5px;cursor:pointer;transition:all .15s;font-weight:500;letter-spacing:.03em}
+.year-btn:hover{border-color:var(--accent-blue);color:var(--text-primary)}
+.year-btn.active{background:var(--accent-blue);border-color:var(--accent-blue);color:#fff;font-weight:600}
+.group-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.grp-btn{padding:4px 11px;font-size:11px;font-family:var(--font-ui);border:1px solid var(--border);background:transparent;color:var(--text-muted);border-radius:4px;cursor:pointer;transition:all .15s}
+.grp-btn:hover{border-color:var(--border-light);color:var(--text-secondary)}
+.grp-btn.active{background:var(--bg-elevated);border-color:var(--border-light);color:var(--text-primary);font-weight:500}
+.filter-bar{display:flex;align-items:center;gap:16px;margin-bottom:20px;flex-wrap:wrap}
+/* ─── KPI CARDS ─── */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:20px}
+.kpi-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:16px 18px;position:relative;overflow:hidden;transition:border-color .2s}
+.kpi-card:hover{border-color:var(--border-light)}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.kpi-card.c-blue::before{background:var(--blue)}
+.kpi-card.c-green::before{background:var(--green)}
+.kpi-card.c-amber::before{background:var(--amber)}
+.kpi-card.c-red::before{background:var(--red)}
+.kpi-lbl{font-size:10px;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;font-family:var(--font-data)}
+.kpi-val{font-size:28px;font-weight:600;font-family:var(--font-data);color:var(--text-primary);letter-spacing:-.02em;line-height:1}
+.kpi-val.c-red{color:#bf3030}
+.kpi-val.c-amber{color:#b07010}
+.kpi-val.c-green{color:#1a8a3a}
+.kpi-sub{font-size:10px;color:var(--text-muted);margin-top:6px;font-family:var(--font-data)}
+/* ─── GRID ─── */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.grid-full{margin-bottom:16px}
+/* ─── PANELS ─── */
+.panel{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.06)}
+.panel-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.panel-title{font-size:12px;font-weight:700;color:var(--text-primary);letter-spacing:.04em;text-transform:uppercase;font-family:var(--font-data)}
+.panel-sub{font-size:10px;color:var(--text-muted);font-family:var(--font-data)}
+.panel-body{padding:16px 18px}
+/* ─── SELECT ─── */
+select.sel{font-size:12px;font-family:var(--font-data);padding:5px 10px;background:var(--bg-elevated);border:1px solid var(--border-light);color:var(--text-secondary);border-radius:5px;cursor:pointer;outline:none;letter-spacing:.02em}
+select.sel:hover,select.sel:focus{border-color:var(--accent-blue);color:var(--text-primary)}
+select.sel option{background:var(--bg-elevated)}
+/* ─── LEGEND ─── */
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:10px;color:var(--text-muted);font-family:var(--font-data)}
+.leg{display:flex;align-items:center;gap:5px}
+.leg-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+/* ─── BADGE ─── */
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;font-family:var(--font-data);letter-spacing:.04em;border:1px solid}
+.badge-safe{background:var(--green-bg);color:var(--green);border-color:var(--green-border)}
+.badge-normal{background:var(--blue-bg);color:#1d6fbf;border-color:var(--blue-border)}
+.badge-caution{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-border)}
+.badge-danger{background:var(--red-bg);color:var(--red);border-color:var(--red-border)}
+/* ─── TABLE ─── */
+.data-table{width:100%;border-collapse:collapse}
+.data-table th{text-align:left;padding:8px 12px;border-bottom:1px solid var(--border);color:var(--text-muted);font-size:9px;font-family:var(--font-data);font-weight:700;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+.data-table td{padding:8px 12px;border-bottom:1px solid var(--border);font-size:12px;vertical-align:middle}
+.data-table tr:last-child td{border-bottom:none}
+.data-table tr:hover td{background:var(--bg-elevated)}
+.data-table .mono{font-family:var(--font-data)}
+.data-table .right{text-align:right}
+/* ─── LOAD BAR ─── */
+.load-bar-wrap{background:var(--bg-base);border-radius:3px;overflow:hidden;height:5px;width:80px;display:inline-block;vertical-align:middle;margin-right:6px}
+.load-bar-fill{height:100%;border-radius:3px;transition:width .4s}
+/* ─── STATUS DOT ─── */
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px;flex-shrink:0}
+.dot-safe{background:var(--green);box-shadow:none}
+.dot-normal{background:#1d6fbf;box-shadow:none}
+.dot-caution{background:var(--amber);box-shadow:none}
+.dot-danger{background:var(--red);box-shadow:none;animation:pulse-red 1.5s infinite}
+@keyframes pulse-red{0%,100%{opacity:1}50%{opacity:.5}}
+/* ─── NOTE ─── */
+.note{font-size:10px;color:var(--text-muted);font-family:var(--font-data);padding:10px 18px;border-top:1px solid var(--border);letter-spacing:.02em}
+/* ─── SCROLLBAR ─── */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg-base)}
+::-webkit-scrollbar-thumb{background:var(--border-light);border-radius:3px}
+/* ─── CHART CONTAINERS ─── */
+.chart-wrap{position:relative;width:100%}
+/* ─── RESPONSIVE ─── */
+/* ─── MOBILE NAV ─── */
+.mob-bar{display:none;height:52px;background:var(--bg-surface);border-bottom:1px solid var(--border);align-items:center;padding:0 16px;gap:12px;position:sticky;top:0;z-index:200}
+.mob-title{font-size:14px;font-weight:700;color:var(--text-primary);flex:1}
+.mob-badge{font-size:10px;font-family:var(--font-data);padding:2px 7px;border-radius:4px;background:var(--accent-blue-glow);color:var(--accent-blue-bright);border:1px solid var(--accent-blue)}
+.ham{background:none;border:none;cursor:pointer;padding:6px;color:var(--text-secondary);display:flex;flex-direction:column;gap:4px}
+.ham span{display:block;width:20px;height:2px;background:currentColor;border-radius:1px;transition:all .2s}
+.mob-nav{display:none;flex-direction:column;background:var(--bg-surface);border-bottom:1px solid var(--border);padding:8px 0}
+.mob-nav.open{display:flex}
+.mob-nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;font-size:13px;color:var(--text-secondary);cursor:pointer;border:none;background:none;width:100%;text-align:left;font-family:var(--font-ui)}
+.mob-nav-item.active{color:var(--accent-blue-bright);background:var(--accent-blue-glow);font-weight:500}
+.mob-nav-item svg{width:15px;height:15px;stroke:currentColor;flex-shrink:0}
+
+@media(max-width:900px){
+  .sidebar{display:none}
+  .mob-bar{display:flex}
+  .main{margin-left:0}
+  .grid-2{grid-template-columns:1fr}
+  .header{display:none}
+  .kpi-row{grid-template-columns:1fr 1fr}
+  .kpi-card[style*="grid-column:span 2"]{grid-column:span 2}
+  .filter-bar{gap:10px}
+  .year-bar,.group-bar{gap:4px}
+  .pie-layout{grid-template-columns:1fr !important}
+  .pie-canvas-wrap{height:240px !important}
+  .zone-cards-wrap{margin-top:12px}
+}
+@media(max-width:600px){
+  .content{padding:12px}
+  .kpi-val{font-size:20px}
+  .kpi-row{grid-template-columns:1fr}
+  .kpi-card[style*="grid-column:span 2"]{grid-column:span 1}
+  .panel-head{flex-direction:column;align-items:flex-start;gap:8px}
+  .year-btn,.grp-btn{font-size:11px;padding:4px 10px}
+  .data-table th:nth-child(3),.data-table td:nth-child(3),
+  .data-table th:nth-child(4),.data-table td:nth-child(4),
+  .data-table th:nth-child(5),.data-table td:nth-child(5){display:none}
+  .filter-bar{flex-direction:column;align-items:flex-start}
+}
+/* ─── SYNC UI ─── */
+.sync-bar{background:var(--bg-surface);border-bottom:1px solid var(--border);padding:10px 24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.sync-status{font-size:11px;font-family:var(--font-data);display:flex;align-items:center;gap:6px;color:var(--text-muted)}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--text-muted);flex-shrink:0}
+.sync-dot.connected{background:#1a8a3a;box-shadow:0 0 5px rgba(26,138,58,0.4)}
+.sync-dot.loading{background:#b07010;animation:pulse-amber 1s infinite}
+.sync-dot.error{background:#bf3030}
+@keyframes pulse-amber{0%,100%{opacity:1}50%{opacity:.4}}
+.btn-sync{padding:5px 14px;font-size:11px;font-family:var(--font-ui);background:var(--accent-blue-glow);border:1px solid var(--accent-blue);color:var(--accent-blue-bright);border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:5px;transition:all .15s}
+.btn-sync:hover{background:var(--accent-blue);color:#fff}
+.btn-sync svg{width:13px;height:13px;stroke:currentColor}
+.btn-login{padding:5px 14px;font-size:11px;font-family:var(--font-ui);background:transparent;border:1px solid var(--border-light);color:var(--text-secondary);border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:5px;transition:all .15s}
+.btn-login:hover{border-color:var(--accent-blue);color:var(--accent-blue-bright)}
+.btn-login svg{width:13px;height:13px;stroke:currentColor}
+.sync-time{font-size:10px;font-family:var(--font-data);color:var(--text-muted);margin-left:auto}
+.drop-zone{border:2px dashed var(--border-light);border-radius:8px;padding:20px;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg-elevated)}
+.drop-zone:hover,.drop-zone.drag-over{border-color:var(--accent-blue);background:var(--accent-blue-glow)}
+.drop-zone p{font-size:12px;color:var(--text-muted);margin-top:6px}
+.cfg-panel{background:var(--bg-elevated);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px;font-size:12px}
+.cfg-row{display:grid;grid-template-columns:140px 1fr;gap:8px;align-items:center;margin-bottom:8px}
+.cfg-lbl{font-size:11px;font-family:var(--font-data);color:var(--text-secondary)}
+.cfg-input{padding:5px 10px;font-size:11px;font-family:var(--font-data);background:var(--bg-surface);border:1px solid var(--border-light);color:var(--text-primary);border-radius:5px;width:100%}
+.cfg-input:focus{outline:none;border-color:var(--accent-blue)}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;padding:24px;width:min(480px,90vw);max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.12)}
+.modal h2{font-size:15px;font-weight:700;margin-bottom:4px;color:var(--text-primary)}
+.modal p{font-size:12px;color:var(--text-muted);margin-bottom:16px;line-height:1.6}
+.modal-actions{display:flex;gap:8px;margin-top:16px;justify-content:flex-end}
+.btn-primary{padding:7px 18px;font-size:12px;font-family:var(--font-ui);background:var(--accent-blue);border:none;color:#fff;border-radius:6px;cursor:pointer;font-weight:500}
+.btn-primary:hover{opacity:.9}
+.btn-ghost{padding:7px 18px;font-size:12px;font-family:var(--font-ui);background:transparent;border:1px solid var(--border-light);color:var(--text-secondary);border-radius:6px;cursor:pointer}
+.step-num{display:inline-flex;width:20px;height:20px;border-radius:50%;background:var(--accent-blue);color:#fff;font-size:10px;font-family:var(--font-data);align-items:center;justify-content:center;margin-right:6px;flex-shrink:0}
+.step{display:flex;align-items:flex-start;gap:0;margin-bottom:10px;font-size:12px;color:var(--text-secondary);line-height:1.5}
+code{font-family:var(--font-data);font-size:10px;background:var(--bg-elevated);padding:1px 5px;border-radius:3px;color:var(--text-primary)}
+/* ─── PRINT ─── */
+@media print{
+  .sidebar,.header .header-right{display:none}
+  .main{margin-left:0}
+  .content{padding:10px}
+  .panel{break-inside:avoid}
+}
+/* ─── SPARKLINE MINI CHART ─── */
+.trend-up::after{content:'↑';color:var(--red);font-size:10px;margin-left:4px}
+.trend-dn::after{content:'↓';color:var(--green);font-size:10px;margin-left:4px}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- ── SIDEBAR ── -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+      </svg>
+    </div>
+    <h1>전기실 변압기<br>부하 분석 시스템</h1>
+    <p>Power Load Monitor v2.0</p>
+  </div>
+
+  <div class="sidebar-section">분석 메뉴</div>
+  <div class="nav-item active" onclick="showPage('overview')">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+    전체 현황
+  </div>
+  <div class="nav-item" onclick="showPage('trend')">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    월별 추이
+  </div>
+  <div class="nav-item" onclick="showPage('table')">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+    부하여유율 표
+  </div>
+
+  <div class="sidebar-section" style="margin-top:8px">데이터 기준</div>
+  <div style="padding:0 16px">
+    <div style="font-size:10px;color:var(--text-muted);font-family:var(--font-data);line-height:2">
+      <div>■ 변압기: <span style="color:var(--text-secondary)" id="sb-count">—</span></div>
+      <div>■ 기준: 월별 최대전력</div>
+      <div>■ 계약전력: <span id="sb-contract">—</span></div>
+      <div>■ 2026년: 1~3월 한정</div>
+    </div>
+  </div>
+
+  <div class="sidebar-footer">
+    <!-- 부하율 범례 -->
+    <div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border)">
+      <div style="font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;font-family:var(--font-data)">부하율 기준</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:24px;height:5px;border-radius:3px;background:#1a8a3a;flex-shrink:0"></div>
+          <span style="font-size:11px;font-weight:600;color:#1a8a3a">여유</span>
+          <span style="font-size:10px;color:var(--text-muted);font-family:var(--font-data);margin-left:auto">~ 40%</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:24px;height:5px;border-radius:3px;background:#1d6fbf;flex-shrink:0"></div>
+          <span style="font-size:11px;font-weight:600;color:#1d6fbf">정상</span>
+          <span style="font-size:10px;color:var(--text-muted);font-family:var(--font-data);margin-left:auto">40~60%</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:24px;height:5px;border-radius:3px;background:#b07010;flex-shrink:0"></div>
+          <span style="font-size:11px;font-weight:600;color:#b07010">주의</span>
+          <span style="font-size:10px;color:var(--text-muted);font-family:var(--font-data);margin-left:auto">60~80%</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:24px;height:5px;border-radius:3px;background:#bf3030;flex-shrink:0"></div>
+          <span style="font-size:11px;font-weight:600;color:#bf3030">위험</span>
+          <span style="font-size:10px;color:var(--text-muted);font-family:var(--font-data);margin-left:auto">80% 초과</span>
+        </div>
+      </div>
+    </div>
+    <span>최종 업데이트</span>
+    <span style="color:var(--text-secondary)" id="sb-date">—</span>
+    <span style="margin-top:6px;color:var(--accent-blue)">■ LIVE DATA</span>
+  </div>
+</aside>
+
+<!-- ── MAIN ── -->
+<div class="main">
+
+  <!-- MOBILE TOP BAR -->
+  <div class="mob-bar">
+    <button class="ham" id="hamBtn" onclick="toggleMobNav()" aria-label="메뉴 열기">
+      <span></span><span></span><span></span>
+    </button>
+    <span class="mob-title">변압기 부하 분석</span>
+    <span class="mob-badge" id="mob-year-badge">2023년</span>
+  </div>
+  <div class="mob-nav" id="mobNav">
+    <button class="mob-nav-item active" onclick="mobShowPage('overview',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>전체 현황
+    </button>
+    <button class="mob-nav-item" onclick="mobShowPage('trend',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>월별 추이
+    </button>
+    <button class="mob-nav-item" onclick="mobShowPage('table',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>부하여유율 표
+    </button>
+  </div>
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-title">전기실 변압기 부하 분석</div>
+    <div class="header-sep"></div>
+    <div class="header-badge" id="year-badge">2023년</div>
+    <div class="header-right">
+      <button class="btn-export" onclick="window.print()">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        인쇄 / PDF
+      </button>
+    </div>
+  </header>
+
+  <!-- SYNC BAR -->
+  <div class="sync-bar" id="syncBar">
+    <div class="sync-status">
+      <span class="sync-dot" id="syncDot"></span>
+      <span id="syncMsg">연결 안됨 — 로그인하거나 파일을 직접 업로드하세요</span>
+    </div>
+    <button class="btn-login" id="btnLogin" onclick="msalLogin()">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+      Microsoft 로그인
+    </button>
+    <button class="btn-sync" id="btnRefresh" onclick="fetchFromGraph()" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      데이터 새로고침
+    </button>
+    <button class="btn-ghost" onclick="document.getElementById('settingsModal').classList.add('open')" style="font-size:11px;padding:5px 10px">⚙ 설정</button>
+    <label class="btn-ghost" style="font-size:11px;padding:5px 10px;cursor:pointer">
+      📂 파일 직접 업로드
+      <input type="file" accept=".xlsx,.xls" style="display:none" onchange="handleFileUpload(event)">
+    </label>
+    <span class="sync-time" id="syncTime"></span>
+  </div>
+
+  <!-- SETTINGS MODAL -->
+  <div class="modal-bg" id="settingsModal" onclick="if(event.target===this)this.classList.remove('open')">
+    <div class="modal">
+      <h2>⚙ SharePoint 연동 설정</h2>
+      <p>IT 담당자에게 Azure AD 앱 등록을 요청한 후 아래 정보를 입력하세요.<br>설정값은 이 브라우저에 저장됩니다.</p>
+      <div class="cfg-panel">
+        <div class="step"><span class="step-num">1</span>Azure Portal → Azure Active Directory → 앱 등록 → 새 등록</div>
+        <div class="step"><span class="step-num">2</span>리디렉션 URI: <code>이 대시보드 URL</code> 입력 (SPA 유형)</div>
+        <div class="step"><span class="step-num">3</span>API 권한 → Microsoft Graph → <code>Files.Read</code> 추가 후 관리자 동의</div>
+        <div class="step"><span class="step-num">4</span>아래에 앱 ID / 테넌트 ID 입력</div>
+      </div>
+      <div class="cfg-row"><span class="cfg-lbl">테넌트 ID</span><input class="cfg-input" id="cfgTenant" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"></div>
+      <div class="cfg-row"><span class="cfg-lbl">클라이언트 ID</span><input class="cfg-input" id="cfgClient" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"></div>
+      <div class="cfg-row"><span class="cfg-lbl">파일 경로 (OneDrive)</span><input class="cfg-input" id="cfgPath" placeholder="/drives/{드라이브ID}/items/{파일ID}"></div>
+      <div class="cfg-row"><span class="cfg-lbl">자동 새로고침</span>
+        <select class="cfg-input" id="cfgInterval">
+          <option value="0">사용 안 함</option>
+          <option value="5">5분마다</option>
+          <option value="15" selected>15분마다</option>
+          <option value="30">30분마다</option>
+          <option value="60">1시간마다</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-ghost" onclick="document.getElementById('settingsModal').classList.remove('open')">닫기</button>
+        <button class="btn-primary" onclick="saveSettings()">저장 및 연결</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content">
+
+    <!-- FILTER BAR -->
+    <div class="filter-bar">
+      <div class="year-bar">
+        <span class="year-label">YEAR</span>
+        <button class="year-btn active" onclick="setYear(2023,this)">2023</button>
+        <button class="year-btn" onclick="setYear(2024,this)">2024</button>
+        <button class="year-btn" onclick="setYear(2025,this)">2025</button>
+        <button class="year-btn" onclick="setYear(2026,this)">2026</button>
+      </div>
+      <div class="header-sep"></div>
+      <div class="group-bar" id="zoneBtnBar">
+        <span class="year-label">ZONE</span>
+        <!-- JS로 동적 렌더링 -->
+      </div>
+    </div>
+
+    <!-- PAGE: OVERVIEW -->
+    <div id="page-overview">
+      <!-- KPI -->
+      <div class="kpi-row">
+        <div class="kpi-card" id="k-site-card" style="border-top:2px solid #1d6fbf;grid-column:span 2">
+          <div class="kpi-lbl">사업장 전체 최대전력 (SHV-102)</div>
+          <div style="display:flex;align-items:baseline;gap:16px;flex-wrap:wrap">
+            <div>
+              <div style="font-size:10px;color:var(--text-muted);font-family:var(--font-data);margin-bottom:2px">연간 최대</div>
+              <div class="kpi-val" id="k-site-max" style="font-size:26px">—</div>
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--text-muted);font-family:var(--font-data);margin-bottom:2px">월 평균</div>
+              <div style="font-size:20px;font-weight:600;font-family:var(--font-data);color:var(--text-secondary)" id="k-site-avg">—</div>
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--text-muted);font-family:var(--font-data);margin-bottom:2px">계약전력 대비</div>
+              <div style="font-size:20px;font-weight:600;font-family:var(--font-data);color:var(--text-secondary)" id="k-site-pct">—</div>
+            </div>
+          </div>
+        </div>
+        <div class="kpi-card c-blue">
+          <div class="kpi-lbl">분석 변압기</div>
+          <div class="kpi-val" id="k-count">—</div>
+          <div class="kpi-sub" id="k-count-sub">—</div>
+        </div>
+        <div class="kpi-card c-green">
+          <div class="kpi-lbl">평균 최대부하율</div>
+          <div class="kpi-val" id="k-avg">—</div>
+          <div class="kpi-sub" id="k-avg-sub">—</div>
+        </div>
+        <div class="kpi-card c-red">
+          <div class="kpi-lbl">최고 부하율</div>
+          <div class="kpi-val c-red" id="k-max">—</div>
+          <div class="kpi-sub" id="k-max-sub">—</div>
+        </div>
+        <div class="kpi-card c-amber">
+          <div class="kpi-lbl">주의·위험 변압기</div>
+          <div class="kpi-val c-amber" id="k-warn">—</div>
+          <div class="kpi-sub" id="k-warn-sub">—</div>
+        </div>
+        <div class="kpi-card c-green">
+          <div class="kpi-lbl">평균 부하여유율</div>
+          <div class="kpi-val c-green" id="k-margin">—</div>
+          <div class="kpi-sub">최대부하율 기준</div>
+        </div>
+        <div class="kpi-card c-blue">
+          <div class="kpi-lbl">계약전력</div>
+          <div class="kpi-val" id="k-contract">—</div>
+          <div class="kpi-sub" id="k-contract-sub">한전 계약</div>
+        </div>
+        <div class="kpi-card" id="k-peak-card" style="border-top:2px solid #b07010">
+          <div class="kpi-lbl">한전 Peak 부하율</div>
+          <div class="kpi-val" id="k-peak">—</div>
+          <div class="kpi-sub" id="k-peak-sub">계약전력 대비</div>
+        </div>
+      </div>
+
+      <!-- ZONE POWER PIE -->
+      <div class="panel grid-full" style="margin-bottom:16px">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">Zone별 전력사용량 비율</div>
+            <div class="panel-sub" id="pie-sub">전력량(KW) = 최대부하율 × 변압기용량(KVA) ÷ 100 기준</div>
+          </div>
+          <select class="sel" id="pieMonthSel" onchange="updateZonePie()">
+            <option value="avg">연간 평균</option>
+            <option value="0">1월</option><option value="1">2월</option>
+            <option value="2">3월</option><option value="3">4월</option>
+            <option value="4">5월</option><option value="5">6월</option>
+            <option value="6">7월</option><option value="7">8월</option>
+            <option value="8">9월</option><option value="9">10월</option>
+            <option value="10">11월</option><option value="11">12월</option>
+          </select>
+        </div>
+        <div class="panel-body">
+          <div class="pie-layout" style="display:grid;grid-template-columns:260px 1fr;gap:28px;align-items:start">
+            <div class="pie-canvas-wrap" style="position:relative;height:260px">
+              <canvas id="pieChart" role="img" aria-label="Zone별 전력사용량 비율 도넛 차트"></canvas>
+              <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none">
+                <div style="font-size:10px;color:var(--text-muted);font-family:var(--font-data);letter-spacing:.05em">사업장 합계</div>
+                <div style="font-size:20px;font-weight:700;font-family:var(--font-data);color:var(--text-primary);line-height:1.2" id="pieTotalKW">—</div>
+                <div style="font-size:10px;color:var(--text-muted);font-family:var(--font-data)">KW</div>
+              </div>
+            </div>
+            <div class="zone-cards-wrap">
+              <div id="zoneCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px"></div>
+              <div id="zoneMiniTable"></div>
+            </div>
+          </div>
+        </div>
+        <div class="note" id="pie-note"></div>
+      </div>
+
+      <!-- BAR + LINE -->
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">변압기별 최대 부하율</div>
+              <div class="panel-sub" id="bar-sub">—</div>
+            </div>
+            <div class="legend">
+              <div class="leg"><div class="leg-dot" style="background:#1a8a3a"></div>여유 ~40%</div>
+              <div class="leg"><div class="leg-dot" style="background:#1d6fbf"></div>정상 ~60%</div>
+              <div class="leg"><div class="leg-dot" style="background:#b07010"></div>주의 ~80%</div>
+              <div class="leg"><div class="leg-dot" style="background:#bf3030"></div>위험 80%+</div>
+            </div>
+          </div>
+          <div class="panel-body" style="padding:12px 16px">
+            <div class="chart-wrap" id="barWrap" style="height:480px">
+              <canvas id="barChart" role="img" aria-label="변압기별 최대 부하율 막대 그래프"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">월별 부하율 추이</div>
+              <div class="panel-sub" id="line-info">변압기 선택</div>
+            </div>
+            <select class="sel" id="trSel" onchange="updateLine()"></select>
+          </div>
+          <div class="panel-body">
+            <div class="legend" style="margin-bottom:12px">
+              <div class="leg"><div class="leg-dot" style="background:#1d6fbf"></div>부하율 %</div>
+              <div class="leg"><div class="leg-dot" style="background:#b07010;opacity:.8"></div>주의선 60%</div>
+              <div class="leg"><div class="leg-dot" style="background:#bf3030;opacity:.8"></div>위험선 80%</div>
+            </div>
+            <div class="chart-wrap" style="height:200px">
+              <canvas id="lineChart" role="img" aria-label="선택 변압기 월별 부하율 추이"></canvas>
+            </div>
+            <div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px" id="lineStats"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- YEAR COMPARE -->
+      <div class="panel grid-full">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">연도별 변압기 부하율 비교</div>
+            <div class="panel-sub">선택 변압기 기준 — 2023~2026년</div>
+          </div>
+          <select class="sel" id="cmpSel" onchange="updateCompare()"></select>
+        </div>
+        <div class="panel-body">
+          <div class="chart-wrap" style="height:200px">
+            <canvas id="cmpChart" role="img" aria-label="연도별 변압기 부하율 비교 차트"></canvas>
+          </div>
+        </div>
+        <div class="note" id="cmpNote"></div>
+      </div>
+    </div>
+
+    <!-- PAGE: TREND -->
+    <div id="page-trend" style="display:none">
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">변압기 월별 부하율 상세 추이</div>
+            <div class="panel-sub">전기실별 모든 변압기 월별 최대부하율</div>
+          </div>
+          <select class="sel" id="trendSel" onchange="updateTrend()"></select>
+        </div>
+        <div class="panel-body">
+          <div class="legend" style="margin-bottom:12px">
+            <div class="leg"><div class="leg-dot" style="background:#1d6fbf"></div>부하율 %</div>
+            <div class="leg"><div class="leg-dot" style="background:#b07010"></div>주의 60%</div>
+            <div class="leg"><div class="leg-dot" style="background:#bf3030"></div>위험 80%</div>
+          </div>
+          <div class="chart-wrap" style="height:300px">
+            <canvas id="trendChart" role="img" aria-label="선택 변압기 월별 부하율 상세 추이"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:16px">
+        <div class="panel-head">
+          <div class="panel-title">전기실별 그룹 부하율 비교</div>
+          <div class="panel-sub" id="groupNote">각 전기실의 월별 대표 부하율</div>
+        </div>
+        <div class="panel-body">
+          <div class="chart-wrap" style="height:260px">
+            <canvas id="groupChart" role="img" aria-label="전기실별 그룹 부하율 비교"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE: TABLE -->
+    <div id="page-table" style="display:none">
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">부하여유율 현황표</div>
+            <div class="panel-sub" id="tbl-sub">최대부하율 기준 내림차순</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select class="sel" id="tblSort" onchange="renderTable()">
+              <option value="max">최대부하율 순</option>
+              <option value="margin">여유율 순</option>
+              <option value="cap">용량 순</option>
+              <option value="group">전기실 순</option>
+            </select>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="data-table" id="mainTable">
+            <thead><tr>
+              <th>상태</th>
+              <th>변압기 ID</th>
+              <th>판넬명</th>
+              <th>전기실</th>
+              <th>용도</th>
+              <th class="right">용량(KVA)</th>
+              <th class="right">최대부하율</th>
+              <th class="right">부하여유율</th>
+              <th class="right">최소부하율</th>
+              <th>부하</th>
+            </tr></thead>
+            <tbody id="tblBody"></tbody>
+          </table>
+        </div>
+        <div class="note" id="tbl-note"></div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /layout -->
+
+<script>
+const N=null;
+const CONTRACT_POWER_MAP={2023:12000,2024:12000,2025:13000,2026:20000};
+const MONTHS=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+const YEARS=[2023,2024,2025,2026];
+
+// SHV-102 실측 KW (사업장 전체부하전력 기준)
+const SHV102={
+  cap:{2023:12000,2024:12000,2025:13000,2026:20000},
+  kw:{
+    2023:[5102,4813,4828,3524,3621,4455,3759,4747,4553,3756,4820,3943],
+    2024:[3841,3956,4955,5493,5023,4630,4571,4608,5388,4511,2782,3573],
+    2025:[3345,4032,4694,5898,3981,3680,3093,4036,4366,4669,6076,4114],
+    2026:[4893,4152,3187,null,null,null,null,null,null,null,null,null]
+  }
+};
+const TRS=[
+  {id:'TR-M1',panel:'HV-101',group:'UT동',cap:6000,use:'생산동 시험전력',d:{
+    2023:[48.95,48.75,50.82,33.5,30.15,46.53,45.8,50.62,46.78,38.32,39.78,32.18],
+    2024:[30.15,29.93,43.23,54.23,36.95,35.32,37.08,38.9,47.13,36.9,24.02,27.32],
+    2025:[17.83,42.87,54.03,56.3,30.62,30.9,16.72,20.38,16.72,24.87,37.73,15.3],
+    2026:[30.4,20.48,16.12,N,N,N,N,N,N,N,N,N]}},
+  {id:'TR-M2',panel:'HV-102',group:'UT동',cap:4000,use:'HV-301+TR-101 병렬',d:{
+    2023:[N,N,N,N,N,N,N,N,N,N,N,N],
+    2024:[N,N,N,N,N,N,N,N,N,N,N,N],
+    2025:[N,N,N,N,N,30.75,29.68,33.95,35.17,33.73,41.1,34.25],
+    2026:[42.15,34.35,30.68,N,N,N,N,N,N,N,N,N]}},
+  {id:'TR-M3',panel:'HV-103',group:'UT동',cap:4000,use:'UT,R1,R2,M1,물류',d:{
+    2023:[54.1,63.05,51.35,44.55,46.97,56.57,60.8,59.47,53.65,56.1,60.77,64.67],
+    2024:[59.2,68.63,69.15,59.75,67.67,60.5,71.92,65.92,76.55,57.93,56.4,67.25],
+    2025:[72.42,64.7,58.45,63.95,57.05,51.6,40.17,50.88,51.08,45.2,40.0,48.08],
+    2026:[51.92,49.25,42.93,N,N,N,N,N,N,N,N,N]}},
+  {id:'TR-101',panel:'LV-101',group:'UT동',cap:1500,use:'UT설비,전열,전등,ESS',d:{
+    2023:[25.4,24.8,24.0,23.67,23.33,23.07,24.8,23.87,24.13,22.4,24.27,24.53],
+    2024:[23.53,22.87,24.13,23.73,23.87,21.73,27.4,26.73,25.0,24.07,22.27,25.07],
+    2025:[24.27,24.2,24.67,22.67,23.8,24.27,25.13,24.53,25.0,23.33,23.07,26.2],
+    2026:[25.73,24.8,24.67,N,N,N,N,N,N,N,N,N]}},
+  {id:'TR-201',panel:'HV-206#좌',group:'M1동',cap:500,use:'시험용 인버터#1',d:{
+    2023:[N,N,N,N,N,N,N,N,N,N,N,N],
+    2024:[N,N,N,N,N,N,N,N,N,N,N,N],
+    2025:[N,N,N,N,17.8,N,43.0,36.8,N,38.6,N,N],
+    2026:[N,18.2,N,N,N,N,N,N,N,N,N,N]}},
+  {id:'TR-202',panel:'HV-207#좌',group:'M1동',cap:3500,use:'시험용 인버터#1',d:{
+    2023:[N,N,N,N,N,N,N,N,N,N,N,N],
+    2024:[N,N,N,N,N,N,N,N,N,N,N,N],
+    2025:[N,8.5,N,N,42.7,41.0,N,N,N,5.8,N,N],
+    2026:[N,7.8,N,N,N,N,N,N,N,N,N,N]}},
+  {id:'TR-206',panel:'HV-220#좌',group:'M1동',cap:750,use:'시험용 인버터#2',d:{
+    2023:[N,N,N,N,N,N,N,N,N,N,N,N],
+    2024:[N,17.9,N,N,N,N,N,N,N,N,N,N],
+    2025:[N,N,N,32.8,20.8,43.5,N,N,20.1,N,N,0.4],
+    2026:[N,N,N,N,N,N,N,N,N,N,N,N]}},
+  {id:'TR-208',panel:'HV-223#우',group:'M1동',cap:3500,use:'시험용 인버터#2',d:{
+    2023:[N,N,N,N,N,N,N,N,N,N,N,N],
+    2024:[N,N,33.9,43.3,N,N,N,N,N,N,N,N],
+    2025:[N,N,N,35.8,N,N,N,N,N,N,N,N],
+    2026:[N,N,N,N,N,N,N,N,N,N,N,N]}},
+  {id:'TR-209',panel:'HV-236#우',group:'M1동',cap:1500,use:'시험용 인버터#3',d:{
+    2023:[N,N,N,N,N,N,N,N,N,N,N,N],
+    2024:[N,N,N,42.5,N,26.1,N,N,N,N,N,28.7],
+    2025:[N,42.1,7.7,40.9,N,N,10.1,12.1,N,1.3,1.7,N],
+    2026:[N,N,N,N,N,N,N,N,N,N,N,N]}},
+  {id:'TR-211',panel:'HV-239#우',group:'M1동',cap:1500,use:'시험용 인버터#3',d:{
+    2023:[N,N,N,N,N,N,N,N,N,N,N,N],
+    2024:[N,N,N,N,N,N,N,N,N,N,N,N],
+    2025:[N,20.4,N,N,N,N,N,N,N,N,N,N],
+    2026:[N,N,N,N,N,N,N,N,N,N,N,N]}},
+  {id:'TR-304',panel:'HV-302',group:'M1동',cap:1500,use:'현장분전함',d:{
+    2023:[N,N,N,N,N,N,N,N,N,N,N,N],
+    2024:[N,N,N,N,N,N,N,N,N,N,N,N],
+    2025:[N,N,N,N,N,14.9,8.6,9.0,7.9,6.1,9.2,11.9],
+    2026:[N,10.7,10.1,N,N,N,N,N,N,N,N,N]}},
+  {id:'TR-203',panel:'HV-208',group:'M1동',cap:3500,use:'시험용 인버터 #1',d:{
+    2023:[N,N,N,N,N,N,N,N,N,N,N,43.51],
+    2024:[4.77,29.74,37.94,45.49,0,0,0,0,0,0,N,0],
+    2025:[0,56.71,48.34,50.03,0,0,0,0,0,0,0,N],
+    2026:[N,0,0,N,N,N,N,N,N,N,N,N]}},
+  {id:'TR-204',panel:'LV-202',group:'M1동',cap:2500,use:'시험용 상용전력',d:{
+    2023:[28.72,23.56,38.68,12.08,23.56,28.04,10.56,21.88,11.44,7.44,37.44,27.52],
+    2024:[24.6,17.68,35.64,32.6,43.68,5.92,24.8,30.92,32.24,28.28,N,25.72],
+    2025:[16.8,23.56,15.36,3.4,0,28.36,36.2,25.0,39.6,19.36,24.24,N],
+    2026:[N,11.52,25.08,N,N,N,N,N,N,N,N,N]}},
+  {id:'TR-205',panel:'LV-208',group:'M1동',cap:2500,use:'시험용 상용전력',d:{
+    2023:[3.32,26.0,2.76,18.56,8.36,10.36,3.72,1.2,0,0,5.88,3.88],
+    2024:[20.68,21.0,8.32,5.44,20.68,10.84,52.36,8.2,3.92,14.72,N,14.04],
+    2025:[22.72,5.48,21.52,21.12,20.6,3.6,12.92,13.48,39.2,21.16,12.44,N],
+    2026:[N,13.84,24.04,N,N,N,N,N,N,N,N,N]}},
+  {id:'TR-301',panel:'HV-303',group:'M1동',cap:1500,use:'현장분전함',d:{
+    2023:[14.33,14.0,12.6,10.6,10.53,10.47,10.93,10.53,11.6,9.47,15.27,13.47],
+    2024:[15.6,13.27,12.27,10.33,9.0,11.0,12.6,14.07,10.53,7.87,N,13.8],
+    2025:[19.4,19.53,17.0,14.4,11.67,9.53,6.67,6.4,7.93,6.53,10.4,7.67],
+    2026:[N,8.53,8.67,N,N,N,N,N,N,N,N,N]}},
+  {id:'TR-302',panel:'HV-304',group:'M1동',cap:3000,use:'현장분전함',d:{
+    2023:[37.23,48.97,34.63,34.23,29.37,37.6,33.3,30.53,34.37,29.63,39.87,43.77],
+    2024:[36.63,33.3,37.5,31.5,42.33,38.1,32.23,36.0,35.8,30.97,N,27.83],
+    2025:[25.4,35.83,36.8,36.27,31.23,28.57,14.23,19.43,28.5,22.0,31.63,16.43],
+    2026:[N,18.7,15.83,N,N,N,N,N,N,N,N,N]}},
+  {id:'TR-303',panel:'HV-305',group:'M1동',cap:2000,use:'현장분전함',d:{
+    2023:[N,N,N,N,N,N,N,N,N,N,N,N],
+    2024:[N,N,N,N,N,N,N,N,N,N,N,N],
+    2025:[N,N,N,N,N,13.7,15.05,16.05,17.35,17.45,18.4,16.7],
+    2026:[N,15.4,14.7,N,N,N,N,N,N,N,N,N]}},
+  {id:'TR-M(ESS)',panel:'EHV-VCB2',group:'ESS',cap:2000,use:'전기실',d:{
+    2023:[10.5,17.45,9.1,14.25,16.9,14.9,16.7,18.4,18.45,17.1,15.85,11.25],
+    2024:[9.2,8.75,5.6,10.95,9.05,9.05,4.85,5.15,14.55,5.7,N,10.9],
+    2025:[N,N,N,N,N,N,N,N,N,N,N,N],
+    2026:[N,N,N,N,N,N,N,N,N,N,N,N]}},
+  {id:'TR-401',panel:'HV-403',group:'R2동',cap:2000,use:'동력',d:{
+    2023:[7.85,7.4,9.8,7.1,10.65,10.8,15.6,12.8,10.45,11.1,8.6,9.7],
+    2024:[12.25,13.95,17.4,11.35,12.1,10.35,16.35,17.05,15.85,16.05,N,12.2],
+    2025:[15.0,13.55,12.2,16.55,15.9,9.7,24.05,30.3,27.25,15.2,13.35,9.1],
+    2026:[8.4,5.95,6.3,N,N,N,N,N,N,N,N,N]}},
+  {id:'TR-402',panel:'HV-404',group:'R2동',cap:2500,use:'크레인',d:{
+    2023:[0,0.32,1.36,0,0,1.48,1.92,2.08,1.4,1.6,1.92,1.52],
+    2024:[0.96,0,0,0.96,1.88,3.2,0,0.48,2.16,3.0,N,0.36],
+    2025:[6.08,1.6,7.72,1.2,7.6,8.96,0.2,13.24,7.68,0,1.68,17.44],
+    2026:[21.32,21.84,1.2,N,N,N,N,N,N,N,N,N]}},
+  {id:'TR-403',panel:'HV-405',group:'R2동',cap:3000,use:'시험전력',d:{
+    2023:[27.03,13.9,15.6,13.5,20.17,22.93,32.43,25.37,19.47,27.7,20.43,29.77],
+    2024:[24.43,26.23,35.57,38.4,24.37,24.53,28.77,14.7,29.73,23.87,N,31.23],
+    2025:[15.8,16.5,23.67,15.2,15.47,26.17,33.1,30.57,46.63,38.73,33.07,42.0],
+    2026:[41.87,44.8,38.3,N,N,N,N,N,N,N,N,N]}},
+  {id:'TR-404',panel:'HV-406',group:'R2동',cap:2000,use:'전열,전등',d:{
+    2023:[18.45,14.65,13.15,11.15,12.85,14.35,14.7,16.75,15.35,14.25,14.9,16.6],
+    2024:[15.75,15.35,15.55,12.15,12.8,15.2,17.0,16.6,16.05,10.75,N,16.2],
+    2025:[17.1,16.95,17.2,14.75,14.5,16.1,17.35,16.65,17.45,16.3,17.45,19.0],
+    2026:[19.9,18.4,17.55,N,N,N,N,N,N,N,N,N]}},
+  {id:'TR-405',panel:'SHV-109',group:'R2동',cap:3000,use:'공랭식챔버 전원',d:{
+    2023:[N,N,N,N,N,N,N,N,N,N,N,N],
+    2024:[N,N,N,N,N,N,N,N,N,N,N,N],
+    2025:[N,N,N,N,N,N,N,N,N,N,N,32.8],
+    2026:[27.7,27.9,44.0,N,N,N,N,N,N,N,N,N]}},
+  {id:'TR-1(DC)',panel:'SHV-108',group:'데이터센터',cap:3000,use:'현장분전함 (DC)',d:{
+    2023:[N,N,N,N,N,N,N,N,N,N,N,N],
+    2024:[N,N,N,N,N,N,N,N,N,N,N,N],
+    2025:[N,N,N,29.83,35.3,43.8,19.77,39.0,40.87,39.97,50.97,32.87],
+    2026:[30.7,34.9,37.7,N,N,N,N,N,N,N,N,N]}}
+];
+
+let curYear=2023, curGroup='전체', curPage='overview';
+let barInst=null, lineInst=null, cmpInst=null, trendInst=null, groupInst=null, pieInst=null;
+
+const ZONE_COLORS={
+  'UT동':  {bg:'#1d6fbf', light:'rgba(29,111,191,0.08)',  border:'rgba(29,111,191,0.22)'},
+  'M1동':  {bg:'#1a8a3a', light:'rgba(26,138,58,0.08)',   border:'rgba(26,138,58,0.22)'},
+  'R2동':  {bg:'#b07010', light:'rgba(176,112,16,0.08)',  border:'rgba(176,112,16,0.22)'},
+  'ESS':   {bg:'#8b5cf6', light:'rgba(139,92,246,0.08)',  border:'rgba(139,92,246,0.22)'},
+  '데이터센터':{bg:'#0891b2',light:'rgba(8,145,178,0.08)',  border:'rgba(8,145,178,0.22)'},
+};
+const ZONE_ORDER=['UT동','M1동','R2동','ESS','데이터센터'];
+
+function calcZoneKW(yr, monthIdx){
+  const result={};
+  ZONE_ORDER.forEach(z=>result[z]={kw:0,trs:[]});
+  TRS.forEach(t=>{
+    if(!result[t.group])return;
+
+    // UT동은 TR-101(LV-101) 단독값만 사용
+    if(t.group==='UT동' && t.id!=='TR-101') return;
+
+    let kw=0;
+    if(monthIdx==='avg'){
+      const v=valid(t.d[yr]);
+      if(v.length) kw=(v.reduce((a,b)=>a+b,0)/v.length)*t.cap/100;
+    } else {
+      const mi=parseInt(monthIdx);
+      const v=t.d[yr][mi];
+      if(v!==null&&v!==undefined) kw=v*t.cap/100;
+    }
+    result[t.group].kw+=kw;
+    if(kw>0) result[t.group].trs.push({id:t.id,kw:+kw.toFixed(0)});
+  });
+  return result;
+}
+
+function getSHV102KW(yr, monthIdx){
+  if(monthIdx==='avg'){
+    const v=SHV102.kw[yr].filter(x=>x!==null&&x!==undefined);
+    return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length):null;
+  }
+  const mi=parseInt(monthIdx);
+  const v=SHV102.kw[yr][mi];
+  return(v!==null&&v!==undefined)?v:null;
+}
+
+function updateZonePie(){
+  const monthIdx=document.getElementById('pieMonthSel').value;
+  const yr=curYear;
+  const zData=calcZoneKW(yr,monthIdx);
+  const zones=ZONE_ORDER.filter(z=>zData[z]&&zData[z].kw>0);
+  const vals=zones.map(z=>+zData[z].kw.toFixed(0));
+  // SHV-102 실측값을 전체부하로 사용
+  const shv102Total=getSHV102KW(yr,monthIdx);
+  const total=shv102Total||vals.reduce((a,b)=>a+b,0);
+  // 미계량분 (SHV-102 - 집계된 Zone 합)
+  const zoneSum=vals.reduce((a,b)=>a+b,0);
+  const unmetered=shv102Total?Math.max(0,shv102Total-zoneSum):0;
+  const bgColors=zones.map(z=>ZONE_COLORS[z]?ZONE_COLORS[z].bg:'#888');
+  if(unmetered>0){zones.push('기타/미계량');vals.push(+unmetered.toFixed(0));bgColors.push('#c0c8d4');}
+  const monthLabel=monthIdx==='avg'?'연간 평균':MONTHS[parseInt(monthIdx)];
+
+  document.getElementById('pieTotalKW').textContent=total.toLocaleString();
+  document.getElementById('pie-sub').textContent=yr+'년 '+monthLabel+' · SHV-102 실측값 기준 사업장 전체부하전력';
+  const _cKW={2023:12000,2024:12000,2025:13000,2026:20000}[curYear]||12000;
+  const _unm=unmetered>0?' · 미계량분 '+unmetered.toLocaleString()+'kW 포함':'';
+  document.getElementById('pie-note').textContent='※ SHV-102 실측 기준 전체부하 '+total.toLocaleString()+'kW · 계약전력 '+_cKW.toLocaleString()+'kW ('+curYear+'년)'+_unm;
+
+  const ctx=document.getElementById('pieChart').getContext('2d');
+  if(pieInst){pieInst.destroy();pieInst=null;}
+  pieInst=new Chart(ctx,{
+    type:'doughnut',
+    data:{labels:zones,datasets:[{data:vals,backgroundColor:bgColors,borderColor:'#ffffff',
+      borderWidth:3,hoverOffset:10}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,cutout:'62%',
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:'#ffffff',borderColor:'#e2e6ed',borderWidth:1,
+          titleColor:'#1a2332',bodyColor:'#4a5a72',padding:12,
+          callbacks:{
+            label:c=>{
+              const pct=total>0?(c.parsed/total*100).toFixed(1):0;
+              return ' '+c.label+': '+c.parsed.toLocaleString()+' KW ('+pct+'%)';
+            }
+          }
+        }
+      }
+    }
+  });
+
+  document.getElementById('zoneCards').innerHTML=zones.map((z,i)=>{
+    const kw = zData[z] ? zData[z].kw : vals[i];
+    const pct = total>0 ? (kw/total*100).toFixed(1) : 0;
+    const col = ZONE_COLORS[z]||{bg:'#8a9ab4',light:'rgba(138,154,180,0.08)',border:'rgba(138,154,180,0.22)'};
+    return '<div style="background:'+col.light+';border:1px solid '+col.border+';border-radius:8px;padding:12px 14px;border-left:3px solid '+col.bg+'">'
+      +'<div style="font-size:10px;font-weight:700;color:'+col.bg+';font-family:var(--font-data);letter-spacing:.05em;margin-bottom:4px">'+z+'</div>'
+      +'<div style="font-size:20px;font-weight:700;font-family:var(--font-data);color:var(--text-primary);line-height:1">'+Math.round(kw).toLocaleString()+'</div>'
+      +'<div style="font-size:10px;color:var(--text-muted);font-family:var(--font-data);margin-top:2px">KW</div>'
+      +'<div style="margin-top:8px;height:4px;background:rgba(0,0,0,0.08);border-radius:2px">'
+      +'<div style="height:100%;width:'+Math.min(pct,100)+'%;background:'+col.bg+';border-radius:2px"></div></div>'
+      +'<div style="font-size:11px;font-weight:600;color:'+col.bg+';font-family:var(--font-data);margin-top:4px">사업장 전체 대비 '+pct+'%</div>'
+      +'</div>';
+  }).join('');
+
+  const rows=zones.map((z,i)=>{
+    const kw = zData[z] ? zData[z].kw : vals[i];
+    const pct = total>0 ? (kw/total*100).toFixed(1) : 0;
+    const col = ZONE_COLORS[z]||{bg:'#8a9ab4'};
+    const trList = zData[z] ? zData[z].trs.map(t=>'<span style="font-size:10px;font-family:var(--font-data);color:var(--text-muted);margin-right:8px">'+t.id+': '+t.kw.toLocaleString()+'KW</span>').join('') : '';
+    return '<tr>'
+      +'<td style="padding:8px 12px;border-bottom:1px solid var(--border)">'
+      +'<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:'+col.bg+';margin-right:7px;vertical-align:middle"></span>'
+      +'<span style="font-weight:600;font-size:13px">'+z+'</span></td>'
+      +'<td style="padding:8px 12px;border-bottom:1px solid var(--border);font-family:var(--font-data);font-size:13px;font-weight:600;text-align:right">'+Math.round(kw).toLocaleString()+' KW</td>'
+      +'<td style="padding:8px 12px;border-bottom:1px solid var(--border);font-family:var(--font-data);font-size:13px;font-weight:700;text-align:right;color:'+col.bg+'">'+pct+'%</td>'
+      +'<td style="padding:8px 12px;border-bottom:1px solid var(--border);font-size:11px;color:var(--text-muted)">'+trList+'</td>'
+      +'</tr>';
+  }).join('');
+  document.getElementById('zoneMiniTable').innerHTML=
+    '<table style="width:100%;border-collapse:collapse;border:0.5px solid var(--border);border-radius:8px;overflow:hidden">'
+    +'<thead><tr style="background:var(--bg-elevated)">'
+    +'<th style="padding:8px 12px;font-size:9px;font-family:var(--font-data);color:var(--text-muted);letter-spacing:.08em;text-transform:uppercase;text-align:left">Zone</th>'
+    +'<th style="padding:8px 12px;font-size:9px;font-family:var(--font-data);color:var(--text-muted);letter-spacing:.08em;text-transform:uppercase;text-align:right">전력량 (KW)</th>'
+    +'<th style="padding:8px 12px;font-size:9px;font-family:var(--font-data);color:var(--text-muted);letter-spacing:.08em;text-transform:uppercase;text-align:right">사업장 전체 대비 (%)</th>'
+    +'<th style="padding:8px 12px;font-size:9px;font-family:var(--font-data);color:var(--text-muted);letter-spacing:.08em;text-transform:uppercase;text-align:left">변압기별 내역</th>'
+    +'</tr></thead>'
+    +'<tbody>'+rows+'</tbody></table>';
+}
+
+function valid(arr){return arr.filter(v=>v!==null&&v!==undefined);}
+function maxOf(arr){const v=valid(arr);return v.length?Math.max(...v):null;}
+function minOf(arr){const v=valid(arr).filter(x=>x>0);return v.length?Math.min(...v):null;}
+function avgOf(arr){const v=valid(arr);return v.length?v.reduce((a,b)=>a+b,0)/v.length:null;}
+
+function getStatus(v){
+  if(v>=80)return['위험','danger'];
+  if(v>=60)return['주의','caution'];
+  if(v>=30)return['정상','normal'];
+  return['여유','safe'];
+}
+function barColor(v){
+  if(v>=80)return'#bf3030';
+  if(v>=60)return'#b07010';
+  if(v>=40)return'#1d6fbf';
+  return'#1a8a3a';
+}
+
+function getActive(){
+  return TRS.filter(t=>{
+    if(curGroup!=='전체'&&t.group!==curGroup)return false;
+    const v=valid(t.d[curYear]);
+    return v.length>0&&Math.max(...v)>0;
+  });
+}
+
+function setYear(yr,btn){
+  curYear=yr;
+  document.querySelectorAll('.year-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('year-badge').textContent=yr+'년';
+  renderZoneBtns();
+  updateAll();
+}
+function getActiveZones(yr){
+  // 해당 연도에 유효 데이터가 있는 Zone 목록
+  const found=new Set(['전체']);
+  TRS.forEach(t=>{
+    const v=t.d[yr].filter(x=>x!==null&&x!==undefined);
+    if(v.length>0&&Math.max(...v)>0) found.add(t.group);
+  });
+  return found;
+}
+
+function renderZoneBtns(){
+  const activeZones=getActiveZones(curYear);
+  const allZones=['전체','UT동','M1동','R2동','ESS','데이터센터'];
+  const bar=document.getElementById('zoneBtnBar');
+  // label 보존
+  bar.innerHTML='<span class="year-label">ZONE</span>';
+  allZones.forEach(z=>{
+    if(!activeZones.has(z)) return; // 데이터 없는 Zone 버튼 숨김
+    const btn=document.createElement('button');
+    btn.className='grp-btn'+(curGroup===z?' active':'');
+    btn.textContent=z;
+    btn.onclick=()=>setGroup(z,btn);
+    bar.appendChild(btn);
+  });
+  // 현재 선택된 Zone이 이 연도에 없으면 전체로 초기화
+  if(!activeZones.has(curGroup)){
+    curGroup='전체';
+    bar.querySelector('.grp-btn').classList.add('active');
+  }
+}
+
+function setGroup(g,btn){
+  curGroup=g;
+  document.querySelectorAll('#zoneBtnBar .grp-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  updateAll();
+}
+function showPage(p){
+  curPage=p;
+  ['overview','trend','table'].forEach(pg=>{
+    document.getElementById('page-'+pg).style.display=pg===p?'block':'none';
+  });
+  document.querySelectorAll('.nav-item').forEach(n=>{
+    n.classList.toggle('active',n.getAttribute('onclick').includes(p));
+  });
+  if(p==='trend')updateTrendPage();
+  if(p==='table')renderTable();
+}
+
+
+function toggleMobNav(){
+  const nav=document.getElementById('mobNav');
+  nav.classList.toggle('open');
+}
+function mobShowPage(p,btn){
+  showPage(p);
+  document.querySelectorAll('.mob-nav-item').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('mobNav').classList.remove('open');
+}
+
+function updateAll(){
+  const active=getActive();
+  const maxes=active.map(t=>maxOf(t.d[curYear])).filter(v=>v!==null);
+  if(!maxes.length)return;
+  const avg=maxes.reduce((a,b)=>a+b,0)/maxes.length;
+  const mx=Math.max(...maxes);
+  const mn=Math.min(...maxes);
+  const warn=maxes.filter(v=>v>=60).length;
+  const margin=100-avg;
+  const mxTr=active.find(t=>maxOf(t.d[curYear])===mx);
+
+  document.getElementById('k-count').textContent=active.length+'대';
+  document.getElementById('k-count-sub').textContent=curGroup==='전체'?'전 전기실':''+curGroup;
+
+  // SHV-102 사업장 전체부하전력
+  const shvData=SHV102.kw[curYear].filter(v=>v!==null&&v!==undefined);
+  const shvMax=shvData.length?Math.max(...shvData):null;
+  const shvAvg=shvData.length?Math.round(shvData.reduce((a,b)=>a+b,0)/shvData.length):null;
+  const shvCap=SHV102.cap[curYear];
+  const shvMaxPct=shvMax?+(shvMax/shvCap*100).toFixed(1):null;
+  document.getElementById('k-site-max').textContent=shvMax?shvMax.toLocaleString()+' kW':'—';
+  document.getElementById('k-site-avg').textContent=shvAvg?shvAvg.toLocaleString()+' kW':'—';
+  document.getElementById('k-site-pct').textContent=shvMaxPct?shvMaxPct+'%':'—';
+  const siteColor=shvMaxPct>=80?'#bf3030':shvMaxPct>=60?'#b07010':'#1d6fbf';
+  document.getElementById('k-site-max').style.color=siteColor;
+  document.getElementById('k-site-card').style.borderTopColor=siteColor;
+  document.getElementById('k-avg').textContent=avg.toFixed(1)+'%';
+  document.getElementById('k-avg-sub').textContent='범위 '+mn.toFixed(1)+'~'+mx.toFixed(1)+'%';
+  document.getElementById('k-max').textContent=mx.toFixed(1)+'%';
+  document.getElementById('k-max-sub').textContent=mxTr?mxTr.id:'—';
+  document.getElementById('k-warn').textContent=warn+'대';
+  document.getElementById('k-warn-sub').textContent='전체 '+active.length+'대 중';
+  document.getElementById('k-margin').textContent=margin.toFixed(1)+'%';
+  document.getElementById('sb-count').textContent=active.length;
+  document.getElementById('sb-date').textContent=curYear+'.'+(curYear===2026?'03':'12');
+
+  // 계약전력 (2023~2025: 12,000kW / 2026: 20,000kW)
+  const contractKW={2023:12000,2024:12000,2025:13000,2026:20000}[curYear]||12000;
+  // 한전 Peak 실데이터 (파일 원본 기준)
+  // 한전 Peak 월별 KW (엑셀 원본 기준)
+  const hantPeakMonthly={
+    2023:[4954,4685,4387,3158,3129,4051,3311,4319,4099,3225,4118,3436],
+    2024:[3523,3523,4473,5020,4559,4281,4156,4233,4915,4060,2390,3503],
+    2025:[null,null,null,null,null,null,null,null,null,null,null,null],
+    2026:[null,null,null,null,null,null,null,null,null,null,null,null]
+  };
+  // 연간 최대 Peak
+  const hantPeakMax={2023:4954,2024:5020,2025:null,2026:null};
+  const peakKW=hantPeakMax[curYear]||null;
+  const peakPct=peakKW?+(peakKW/contractKW*100).toFixed(1):null;
+  const peakColor=peakPct>=80?'#bf3030':peakPct>=60?'#b07010':'#1d6fbf';
+
+  document.getElementById('k-contract').textContent=contractKW.toLocaleString()+' kW';
+  const contractLabel={2023:'2023년 한전 계약',2024:'2024년 한전 계약',2025:'2025년 한전 계약',2026:'2026년 한전 계약'}[curYear];
+  document.getElementById('k-contract-sub').textContent=contractLabel;
+  document.getElementById('sb-contract').textContent=contractKW.toLocaleString()+' kW';
+  if(peakPct!==null){
+    document.getElementById('k-peak').textContent=peakPct+'%';
+    document.getElementById('k-peak').style.color=peakColor;
+    document.getElementById('k-peak-sub').textContent='Peak '+peakKW.toLocaleString()+' kW / 계약 '+contractKW.toLocaleString()+' kW';
+    document.getElementById('k-peak-card').style.borderTopColor=peakColor;
+  } else {
+    document.getElementById('k-peak').textContent='미기재';
+    document.getElementById('k-peak').style.color='var(--text-muted)';
+    document.getElementById('k-peak-sub').textContent='한전 고지서 미입력';
+    document.getElementById('k-peak-card').style.borderTopColor='var(--border)';
+  }
+
+  updateBar(active);
+  populateSelects(active);
+  updateLine();
+  updateCompare();
+  updateZonePie();
+  if(curPage==='table')renderTable();
+  if(curPage==='trend')updateTrendPage();
+}
+
+function updateBar(active){
+  const labels=active.map(t=>t.id);
+  const vals=active.map(t=>+maxOf(t.d[curYear]).toFixed(1));
+  const colors=vals.map(barColor);
+  const h=Math.max(320,active.length*30+80);
+  document.getElementById('barWrap').style.height=h+'px';
+  document.getElementById('bar-sub').textContent=curYear+'년 · '+active.length+'개 변압기';
+
+  const ctx=document.getElementById('barChart').getContext('2d');
+  if(barInst){barInst.destroy();barInst=null;}
+  barInst=new Chart(ctx,{
+    type:'bar',
+    data:{labels,datasets:[{data:vals,backgroundColor:colors,borderRadius:4,borderSkipped:false}]},
+    options:{
+      indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{
+        backgroundColor:'#ffffff',borderColor:'#e2e6ed',borderWidth:1,
+        titleColor:'#1a2332',bodyColor:'#4a5a72',padding:10,
+        callbacks:{label:c=>`최대 부하율: ${c.parsed.x}%  |  여유율: ${(100-c.parsed.x).toFixed(1)}%`}
+      }},
+      scales:{
+        x:{min:0,max:100,ticks:{callback:v=>v+'%',color:'#8a9ab4',font:{size:10,family:"'JetBrains Mono',monospace"}},
+          grid:{color:'rgba(0,0,0,0.07)'},border:{color:'#e2e6ed'}},
+        y:{ticks:{color:'#4a5a72',font:{size:11,family:"'JetBrains Mono',monospace"}},
+          grid:{display:false},border:{color:'#e2e6ed'}}
+      }
+    }
+  });
+}
+
+function populateSelects(active){
+  const ids=active.map(t=>t.id);
+  ['trSel','cmpSel','trendSel'].forEach(id=>{
+    const sel=document.getElementById(id);
+    if(!sel)return;
+    const prev=sel.value;
+    sel.innerHTML=active.map(t=>`<option value="${t.id}">${t.id} · ${t.group}</option>`).join('');
+    if(ids.includes(prev))sel.value=prev;
+  });
+}
+
+function updateLine(){
+  const selId=document.getElementById('trSel').value;
+  const tr=TRS.find(t=>t.id===selId);
+  if(!tr)return;
+  const data=tr.d[curYear];
+  const v=valid(data);
+  if(!v.length)return;
+  const mx=maxOf(data),mn=minOf(data),av=avgOf(data);
+
+  document.getElementById('line-info').textContent=
+    tr.group+' · '+tr.panel+' · '+tr.cap.toLocaleString()+' KVA';
+
+  document.getElementById('lineStats').innerHTML=`
+    <div style="background:var(--bg-elevated);border-radius:6px;padding:10px 12px;border:1px solid var(--border)">
+      <div style="font-size:9px;color:var(--text-muted);font-family:var(--font-data);letter-spacing:.06em;margin-bottom:4px">최대</div>
+      <div style="font-size:18px;font-weight:600;font-family:var(--font-data);color:#bf3030">${mx.toFixed(1)}%</div>
+    </div>
+    <div style="background:var(--bg-elevated);border-radius:6px;padding:10px 12px;border:1px solid var(--border)">
+      <div style="font-size:9px;color:var(--text-muted);font-family:var(--font-data);letter-spacing:.06em;margin-bottom:4px">평균</div>
+      <div style="font-size:18px;font-weight:600;font-family:var(--font-data);color:#1d6fbf">${av.toFixed(1)}%</div>
+    </div>
+    <div style="background:var(--bg-elevated);border-radius:6px;padding:10px 12px;border:1px solid var(--border)">
+      <div style="font-size:9px;color:var(--text-muted);font-family:var(--font-data);letter-spacing:.06em;margin-bottom:4px">여유율</div>
+      <div style="font-size:18px;font-weight:600;font-family:var(--font-data);color:#1a8a3a">${(100-mx).toFixed(1)}%</div>
+    </div>`;
+
+  const ctx=document.getElementById('lineChart').getContext('2d');
+  if(lineInst){lineInst.destroy();lineInst=null;}
+  lineInst=new Chart(ctx,{
+    type:'line',
+    data:{labels:MONTHS,datasets:[
+      {label:'부하율',data,borderColor:'#1d6fbf',backgroundColor:'rgba(74,158,255,0.07)',
+       borderWidth:2,pointRadius:4,pointBackgroundColor:'#1d6fbf',
+       pointHoverRadius:6,spanGaps:false,tension:0.3,fill:true},
+      {label:'주의 60%',data:Array(12).fill(60),borderColor:'rgba(201,144,26,0.6)',
+       borderWidth:1,borderDash:[6,4],pointRadius:0,fill:false},
+      {label:'위험 80%',data:Array(12).fill(80),borderColor:'rgba(207,70,70,0.6)',
+       borderWidth:1,borderDash:[6,4],pointRadius:0,fill:false}
+    ]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{
+        backgroundColor:'#ffffff',borderColor:'#e2e6ed',borderWidth:1,
+        titleColor:'#1a2332',bodyColor:'#4a5a72',padding:10,
+        callbacks:{label:c=>c.datasetIndex===0&&c.parsed.y!==null?`부하율: ${c.parsed.y.toFixed(1)}%`:c.dataset.label}
+      }},
+      scales:{
+        x:{ticks:{color:'#8a9ab4',font:{size:10,family:"'JetBrains Mono',monospace"}},
+          grid:{color:'rgba(0,0,0,0.07)'},border:{color:'#e2e6ed'}},
+        y:{min:0,max:100,ticks:{callback:v=>v+'%',color:'#8a9ab4',font:{size:10,family:"'JetBrains Mono',monospace"}},
+          grid:{color:'rgba(0,0,0,0.07)'},border:{color:'#e2e6ed'}}
+      }
+    }
+  });
+}
+
+function updateCompare(){
+  const selId=document.getElementById('cmpSel').value;
+  const tr=TRS.find(t=>t.id===selId);
+  if(!tr)return;
+  const colors=['#1d6fbf','#1a8a3a','#b07010','#bf3030'];
+  const datasets=YEARS.map((yr,i)=>{
+    const data=tr.d[yr];
+    const v=valid(data);
+    return{
+      label:yr+'년',data,borderColor:colors[i],
+      backgroundColor:colors[i].replace(')',',0.06)').replace('rgb','rgba'),
+      borderWidth:2,pointRadius:3,spanGaps:false,tension:0.3,fill:false
+    };
+  });
+  document.getElementById('cmpNote').textContent=
+    `※ ${tr.id} (${tr.panel}) — 용량 ${tr.cap.toLocaleString()} KVA · ${tr.use}`;
+
+  const ctx=document.getElementById('cmpChart').getContext('2d');
+  if(cmpInst){cmpInst.destroy();cmpInst=null;}
+  cmpInst=new Chart(ctx,{
+    type:'line',
+    data:{labels:MONTHS,datasets},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{display:true,labels:{color:'#4a5a72',font:{size:10,family:"'JetBrains Mono',monospace"},
+          boxWidth:10,boxHeight:10,padding:14}},
+        tooltip:{backgroundColor:'#ffffff',borderColor:'#e2e6ed',borderWidth:1,
+          titleColor:'#1a2332',bodyColor:'#4a5a72',padding:10}
+      },
+      scales:{
+        x:{ticks:{color:'#8a9ab4',font:{size:10,family:"'JetBrains Mono',monospace"}},
+          grid:{color:'rgba(0,0,0,0.07)'},border:{color:'#e2e6ed'}},
+        y:{min:0,max:100,ticks:{callback:v=>v+'%',color:'#8a9ab4',font:{size:10,family:"'JetBrains Mono',monospace"}},
+          grid:{color:'rgba(0,0,0,0.07)'},border:{color:'#e2e6ed'}}
+      }
+    }
+  });
+}
+
+function updateTrendPage(){
+  const active=getActive();
+  if(!active.length) return;
+  populateSelects(active);
+  // trendSel에 값이 없으면 첫 번째 변압기로 설정
+  const trendSel=document.getElementById('trendSel');
+  if(trendSel&&!trendSel.value&&active.length){
+    trendSel.value=active[0].id;
+  }
+  updateTrend();
+  updateGroupChart(active);
+}
+
+function updateTrend(){
+  const trendSelEl=document.getElementById('trendSel');
+  if(!trendSelEl||!trendSelEl.options.length){
+    // 드롭다운이 비어있으면 먼저 채우기
+    const active=getActive();
+    populateSelects(active);
+  }
+  const selId=document.getElementById('trendSel').value;
+  const tr=TRS.find(t=>t.id===selId);
+  if(!tr)return;
+  const data=tr.d[curYear];
+  const ctx=document.getElementById('trendChart').getContext('2d');
+  if(trendInst){trendInst.destroy();trendInst=null;}
+  trendInst=new Chart(ctx,{
+    type:'bar',
+    data:{labels:MONTHS,datasets:[
+      {type:'line',label:'부하율',data,borderColor:'#1d6fbf',backgroundColor:'rgba(74,158,255,0.05)',
+       borderWidth:2,pointRadius:5,pointBackgroundColor:'#1d6fbf',spanGaps:false,tension:0.3,fill:true,order:1},
+      {type:'line',label:'주의 60%',data:Array(12).fill(60),borderColor:'rgba(201,144,26,0.5)',
+       borderWidth:1.5,borderDash:[5,4],pointRadius:0,fill:false,order:2},
+      {type:'line',label:'위험 80%',data:Array(12).fill(80),borderColor:'rgba(207,70,70,0.5)',
+       borderWidth:1.5,borderDash:[5,4],pointRadius:0,fill:false,order:3}
+    ]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#4a5a72',font:{size:10,family:"'JetBrains Mono',monospace"},boxWidth:10,boxHeight:10}},
+        tooltip:{backgroundColor:'#ffffff',borderColor:'#e2e6ed',borderWidth:1,
+          titleColor:'#1a2332',bodyColor:'#4a5a72',padding:10}},
+      scales:{
+        x:{ticks:{color:'#8a9ab4',font:{size:11,family:"'JetBrains Mono',monospace"}},
+          grid:{color:'rgba(0,0,0,0.07)'},border:{color:'#e2e6ed'}},
+        y:{min:0,max:100,ticks:{callback:v=>v+'%',color:'#8a9ab4',font:{size:11,family:"'JetBrains Mono',monospace"}},
+          grid:{color:'rgba(0,0,0,0.07)'},border:{color:'#e2e6ed'}}
+      }
+    }
+  });
+}
+
+function updateGroupChart(active){
+  const groups=[...new Set(active.map(t=>t.group))];
+  const colors=['#1d6fbf','#1a8a3a','#b07010','#bf3030','#a78bfa','#f472b6'];
+  const datasets=groups.map((g,i)=>{
+    const gTrs=active.filter(t=>t.group===g);
+    const monthAvg=MONTHS.map((_,mi)=>{
+      const vals=gTrs.map(t=>t.d[curYear][mi]).filter(v=>v!==null&&v!==undefined&&v>0);
+      return vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:null;
+    });
+    return{label:g,data:monthAvg,borderColor:colors[i%colors.length],
+      borderWidth:2,pointRadius:3,spanGaps:true,tension:0.3,fill:false};
+  });
+  document.getElementById('groupNote').textContent=curYear+'년 전기실별 월 평균 부하율';
+
+  const ctx=document.getElementById('groupChart').getContext('2d');
+  if(groupInst){groupInst.destroy();groupInst=null;}
+  groupInst=new Chart(ctx,{
+    type:'line',
+    data:{labels:MONTHS,datasets},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#4a5a72',font:{size:10,family:"'JetBrains Mono',monospace"},boxWidth:10,boxHeight:10,padding:14}},
+        tooltip:{backgroundColor:'#ffffff',borderColor:'#e2e6ed',borderWidth:1,
+          titleColor:'#1a2332',bodyColor:'#4a5a72',padding:10,
+          callbacks:{label:c=>c.dataset.label+': '+(c.parsed.y!==null?c.parsed.y.toFixed(1)+'%':'없음')}}},
+      scales:{
+        x:{ticks:{color:'#8a9ab4',font:{size:10,family:"'JetBrains Mono',monospace"}},
+          grid:{color:'rgba(0,0,0,0.07)'},border:{color:'#e2e6ed'}},
+        y:{min:0,max:100,ticks:{callback:v=>v+'%',color:'#8a9ab4',font:{size:10,family:"'JetBrains Mono',monospace"}},
+          grid:{color:'rgba(0,0,0,0.07)'},border:{color:'#e2e6ed'}}
+      }
+    }
+  });
+}
+
+function renderTable(){
+  try {
+    const active = getActive();
+    const tblBody = document.getElementById('tblBody');
+    const tblSub  = document.getElementById('tbl-sub');
+    const tblNote = document.getElementById('tbl-note');
+    const tblSort = document.getElementById('tblSort');
+
+    if(!tblBody){ console.error('tblBody element not found'); return; }
+
+    const sortBy = tblSort ? tblSort.value : 'max';
+    const cKW = CONTRACT_POWER_MAP[curYear] || 12000;
+
+    // 유효 데이터만 필터
+    const rows = active.filter(t => {
+      const mx = maxOf(t.d[curYear]);
+      return mx !== null && mx > 0;
+    });
+
+    // 상단 고정 변압기 (항상 1~4번째)
+    const PINNED = ['TR-M1', 'TR-M2', 'TR-M3', 'TR-1(DC)'];
+    const pinnedRows  = PINNED.map(id => rows.find(t => t.id === id)).filter(Boolean);
+    const normalRows  = rows.filter(t => !PINNED.includes(t.id));
+
+    // 나머지는 선택 정렬 적용
+    normalRows.sort((a, b) => {
+      const am = maxOf(a.d[curYear]) || 0;
+      const bm = maxOf(b.d[curYear]) || 0;
+      if(sortBy === 'max')    return bm - am;
+      if(sortBy === 'margin') return am - bm;
+      if(sortBy === 'cap')    return b.cap - a.cap;
+      if(sortBy === 'group')  return (a.group||'').localeCompare(b.group||'');
+      return 0;
+    });
+
+    const sortedRows = [...pinnedRows, ...normalRows];
+
+    if(tblSub)  tblSub.textContent  = curYear + '년 · ' + sortedRows.length + '개 변압기 · ' + sortBy + ' 기준';
+    if(tblNote) tblNote.textContent = '※ 부하율(%) = 최대수요전력(KW) ÷ 변압기 정격용량(KVA) × 100  |  계약전력: ' + cKW.toLocaleString() + ' kW (' + curYear + '년)';
+
+    if(sortedRows.length === 0){
+      tblBody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--text-muted)">선택한 연도/Zone에 데이터가 없습니다</td></tr>';
+      return;
+    }
+
+    // 행 생성 (createElement 방식 — innerHTML XSS 이슈 없음)
+    const frag = document.createDocumentFragment();
+    sortedRows.forEach((t, idx) => {
+      // 고정행 마지막 다음에 구분선 추가
+      if(idx === pinnedRows.length && pinnedRows.length > 0){
+        const divTr = document.createElement('tr');
+        const divTd = document.createElement('td');
+        divTd.colSpan = 10;
+        divTd.style.cssText = 'padding:0;background:#e2e6ed;height:2px;border:none';
+        divTr.appendChild(divTd);
+        frag.appendChild(divTr);
+      }
+      const mx     = maxOf(t.d[curYear]);
+      const mn     = minOf(t.d[curYear]);
+      const margin = (100 - mx).toFixed(1);
+      const col    = barColor(mx);
+      const fillW  = Math.min(100, mx).toFixed(0);
+      const st_sc  = getStatus(mx);
+      const st     = st_sc[0];
+      const sc     = st_sc[1];
+
+      const tr = document.createElement('tr');
+
+      // 상태
+      const td0 = document.createElement('td');
+      const dot = document.createElement('span');
+      dot.className = 'dot dot-' + sc;
+      const badge = document.createElement('span');
+      badge.className = 'badge badge-' + sc;
+      badge.textContent = st;
+      td0.appendChild(dot);
+      td0.appendChild(badge);
+
+      // 변압기 ID
+      const td1 = document.createElement('td');
+      td1.className = 'mono';
+      td1.style.cssText = 'font-weight:600;font-size:12px';
+      td1.textContent = t.id || '—';
+
+      // 판넬명
+      const td2 = document.createElement('td');
+      td2.className = 'mono';
+      td2.style.color = '#7a93b4';
+      td2.style.fontSize = '11px';
+      td2.textContent = t.panel || '—';
+
+      // 전기실
+      const td3 = document.createElement('td');
+      td3.style.cssText = 'color:#7a93b4;font-size:12px';
+      td3.textContent = t.group || '—';
+
+      // 용도
+      const td4 = document.createElement('td');
+      td4.style.cssText = 'color:#485e78;font-size:11px;max-width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+      td4.textContent = t.use || '—';
+
+      // 용량
+      const td5 = document.createElement('td');
+      td5.className = 'right mono';
+      td5.textContent = (t.cap || 0).toLocaleString();
+
+      // 최대부하율
+      const td6 = document.createElement('td');
+      td6.className = 'right mono';
+      td6.style.cssText = 'font-weight:600;color:' + col;
+      td6.textContent = mx.toFixed(1) + '%';
+
+      // 부하여유율
+      const td7 = document.createElement('td');
+      td7.className = 'right mono';
+      td7.textContent = margin + '%';
+
+      // 최소부하율
+      const td8 = document.createElement('td');
+      td8.className = 'right mono';
+      td8.style.color = '#485e78';
+      td8.textContent = mn !== null ? mn.toFixed(1) + '%' : '—';
+
+      // 부하 바
+      const td9 = document.createElement('td');
+      const barWrap = document.createElement('div');
+      barWrap.className = 'load-bar-wrap';
+      const barFill = document.createElement('div');
+      barFill.className = 'load-bar-fill';
+      barFill.style.cssText = 'width:' + fillW + '%;background:' + col;
+      barWrap.appendChild(barFill);
+      const pctSpan = document.createElement('span');
+      pctSpan.style.cssText = 'font-size:10px;font-family:var(--font-data);color:#485e78';
+      pctSpan.textContent = fillW + '%';
+      td9.appendChild(barWrap);
+      td9.appendChild(pctSpan);
+
+      [td0,td1,td2,td3,td4,td5,td6,td7,td8,td9].forEach(td => tr.appendChild(td));
+      frag.appendChild(tr);
+    });
+
+    tblBody.innerHTML = '';
+    tblBody.appendChild(frag);
+
+  } catch(err) {
+    console.error('renderTable 오류:', err);
+    const tblBody = document.getElementById('tblBody');
+    if(tblBody) tblBody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:#bf3030">표 렌더링 오류: ' + err.message + '</td></tr>';
+  }
+}
+
+// ════════════════════════════════════════
+// SharePoint / OneDrive Graph API 연동
+// ════════════════════════════════════════
+
+let msalInstance=null, autoRefreshTimer=null;
+
+function loadSettings(){
+  return{
+    tenant: localStorage.getItem('spTenant')||'',
+    client: localStorage.getItem('spClient')||'',
+    path:   localStorage.getItem('spPath')||'',
+    interval: parseInt(localStorage.getItem('spInterval')||'15')
+  };
+}
+
+function saveSettings(){
+  const s={
+    tenant: document.getElementById('cfgTenant').value.trim(),
+    client: document.getElementById('cfgClient').value.trim(),
+    path:   document.getElementById('cfgPath').value.trim(),
+    interval: parseInt(document.getElementById('cfgInterval').value)
+  };
+  if(!s.tenant||!s.client){alert('테넌트 ID와 클라이언트 ID를 입력해주세요.');return;}
+  localStorage.setItem('spTenant', s.tenant);
+  localStorage.setItem('spClient', s.client);
+  localStorage.setItem('spPath',   s.path);
+  localStorage.setItem('spInterval', s.interval);
+  document.getElementById('settingsModal').classList.remove('open');
+  initMsal(s);
+}
+
+function initMsal(s){
+  if(!s.tenant||!s.client) return;
+  msalInstance = new msal.PublicClientApplication({
+    auth:{
+      clientId: s.client,
+      authority: 'https://login.microsoftonline.com/'+s.tenant,
+      redirectUri: window.location.href.split('?')[0]
+    },
+    cache:{cacheLocation:'localStorage', storeAuthStateInCookie:true}
+  });
+  msalInstance.initialize().then(()=>{
+    msalInstance.handleRedirectPromise().then(resp=>{
+      if(resp) onLoginSuccess(resp.account);
+      else{
+        const accounts=msalInstance.getAllAccounts();
+        if(accounts.length>0) onLoginSuccess(accounts[0]);
+      }
+    });
+  });
+}
+
+function msalLogin(){
+  if(!msalInstance){
+    document.getElementById('settingsModal').classList.add('open');
+    setSyncStatus('설정 먼저 완료해주세요','error');
+    return;
+  }
+  setSyncStatus('로그인 중...','loading');
+  msalInstance.loginPopup({scopes:['Files.Read','User.Read']})
+    .then(r=>onLoginSuccess(r.account))
+    .catch(e=>{setSyncStatus('로그인 실패: '+e.message,'error');});
+}
+
+function onLoginSuccess(account){
+  setSyncStatus(account.name+' 로그인됨 — 데이터 불러오는 중...','loading');
+  document.getElementById('btnLogin').style.display='none';
+  document.getElementById('btnRefresh').style.display='flex';
+  fetchFromGraph();
+  const iv=loadSettings().interval;
+  if(iv>0){
+    if(autoRefreshTimer) clearInterval(autoRefreshTimer);
+    autoRefreshTimer=setInterval(fetchFromGraph, iv*60*1000);
+  }
+}
+
+async function getAccessToken(){
+  const accounts=msalInstance.getAllAccounts();
+  if(!accounts.length) throw new Error('로그인 필요');
+  const s=loadSettings();
+  const resp=await msalInstance.acquireTokenSilent({
+    scopes:['Files.Read'],
+    account:accounts[0]
+  });
+  return resp.accessToken;
+}
+
+async function fetchFromGraph(){
+  setSyncStatus('최신 데이터 불러오는 중...','loading');
+  try{
+    const token=await getAccessToken();
+    const path=loadSettings().path||'/me/drive/root:/전기실_변압기_월별_최대전력-V3.xlsx:/content';
+    const endpoint=path.startsWith('/drives/')||path.startsWith('/me/')
+      ? 'https://graph.microsoft.com/v1.0'+path
+      : 'https://graph.microsoft.com/v1.0/me/drive/root:/'+encodeURIComponent(path)+':/content';
+    const res=await fetch(endpoint,{headers:{Authorization:'Bearer '+token}});
+    if(!res.ok) throw new Error('파일 접근 실패 ('+res.status+')');
+    const buf=await res.arrayBuffer();
+    parseExcelBuffer(buf,'graph');
+  }catch(e){
+    if(e.errorCode==='interaction_required'){
+      msalLogin();
+    }else{
+      setSyncStatus('오류: '+e.message,'error');
+    }
+  }
+}
+
+// ── 파일 직접 업로드 처리
+function handleFileUpload(event){
+  const file=event.target.files[0];
+  if(!file) return;
+  setSyncStatus(file.name+' 읽는 중...','loading');
+  const reader=new FileReader();
+  reader.onload=e=>parseExcelBuffer(e.target.result,'upload');
+  reader.readAsArrayBuffer(file);
+  event.target.value=''; // 동일 파일 재선택 가능하도록
+}
+
+// ── SheetJS로 Excel 파싱 → 대시보드 데이터 갱신
+function parseExcelBuffer(buffer, source){
+  try{
+    const wb=XLSX.read(buffer,{type:'array'});
+    const sheetMap={'2023년':2023,'2024년':2024,'2025년':2025,'2026년':2026};
+    let updatedYears=[];
+
+    wb.SheetNames.forEach(name=>{
+      const yr=sheetMap[name.trim()];
+      if(!yr) return;
+      const ws=wb.Sheets[name];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
+      parseYearRows(rows,yr);
+      updatedYears.push(yr);
+    });
+
+    if(updatedYears.length===0) throw new Error('시트를 찾을 수 없습니다 (2023년~2026년)');
+
+    // SHV-102도 재파싱
+    wb.SheetNames.forEach(name=>{
+      const yr=sheetMap[name.trim()];
+      if(!yr) return;
+      const ws=wb.Sheets[name];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
+      parseSHV102(rows,yr);
+    });
+
+    const now=new Date().toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+    setSyncStatus((source==='graph'?'SharePoint':'파일')+'에서 불러옴 — '+updatedYears.join(', ')+'년 반영','connected');
+    document.getElementById('syncTime').textContent='최종: '+now;
+    renderZoneBtns();
+    updateAll();
+  }catch(e){
+    setSyncStatus('파싱 오류: '+e.message,'error');
+    console.error(e);
+  }
+}
+
+function findHeaderRow(rows){
+  for(let i=0;i<rows.length;i++){
+    const r=rows[i];
+    if(r&&r.some&&r.some(c=>c&&String(c).includes('판넬명'))) return i;
+  }
+  return -1;
+}
+
+function parseYearRows(rows,yr){
+  const hIdx=findHeaderRow(rows);
+  if(hIdx<0) return;
+  // 데이터 행은 hIdx+2부터 (헤더 2줄)
+  for(let i=hIdx+2;i<rows.length;i++){
+    const row=rows[i];
+    if(!row||!row.some(c=>c)) continue;
+    const panel=String(row[1]||'').trim();
+    const trNo=String(row[3]||'').trim();
+    const tr=TRS.find(t=>t.panel===panel||t.id===trNo);
+    if(!tr) continue;
+    // 월별 KW 컬럼 파싱 (KW 컬럼만, 부하율% 컬럼 스킵)
+    const kwCols=[];
+    // 2023: col7부터 2칸 간격 / 2024+: col8부터 2칸 간격
+    const start=yr===2023?7:8;
+    for(let m=0;m<12;m++){
+      const v=row[start+m*2];
+      kwCols.push((v===null||v===undefined||v===''||v==='휴전중')?null:parseFloat(v)||null);
+    }
+    // KW → 부하율%로 변환 (cap으로 나눠서)
+    if(tr.cap){
+      tr.d[yr]=kwCols.map(v=>v!==null?+(v/tr.cap*100).toFixed(2):null);
+    }
+  }
+}
+
+function parseSHV102(rows,yr){
+  const hIdx=findHeaderRow(rows);
+  if(hIdx<0) return;
+  for(let i=hIdx+2;i<rows.length;i++){
+    const row=rows[i];
+    if(!row) continue;
+    const panel=String(row[1]||'').trim();
+    if(panel!=='SHV-102') continue;
+    const start=yr===2023?7:8;
+    const kwArr=[];
+    for(let m=0;m<12;m++){
+      const v=row[start+m*2];
+      kwArr.push((v===null||v===undefined||v==='')?null:parseFloat(v)||null);
+    }
+    SHV102.kw[yr]=kwArr;
+    // 용량도 갱신
+    const cap=parseFloat(row[4]);
+    if(cap) SHV102.cap[yr]=cap;
+    break;
+  }
+}
+
+function setSyncStatus(msg,state){
+  document.getElementById('syncMsg').textContent=msg;
+  const dot=document.getElementById('syncDot');
+  dot.className='sync-dot'+(state?' '+state:'');
+}
+
+// ── 초기화: 저장된 설정 불러와서 MSAL 초기화
+(function initOnLoad(){
+  const s=loadSettings();
+  if(s.tenant&&s.client){
+    document.getElementById('cfgTenant').value=s.tenant;
+    document.getElementById('cfgClient').value=s.client;
+    document.getElementById('cfgPath').value=s.path;
+    document.getElementById('cfgInterval').value=s.interval;
+    initMsal(s);
+  }
+})();
+
+// Init
+renderZoneBtns();
+updateAll();
+</script>
+</body>
+</html>
