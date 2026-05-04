@@ -356,10 +356,65 @@ code{font-family:var(--font-data);font-size:10px;background:var(--bg-elevated);p
   .ai-panel{width:calc(100vw - 16px);right:8px;bottom:72px;height:70vh}
   .ai-fab{bottom:16px;right:16px;width:46px;height:46px;font-size:20px}
 }
+
+/* ─── 경고 알람 팝업 ─── */
+#alarmOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center}
+#alarmOverlay.active{display:flex}
+#alarmBox{background:#fff;border-radius:16px;width:min(480px,90vw);overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3);animation:alarmIn .3s ease}
+@keyframes alarmIn{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
+.alarm-header{background:linear-gradient(135deg,#bf3030,#8b0000);padding:20px 24px;display:flex;align-items:center;gap:12px}
+.alarm-icon{width:44px;height:44px;background:rgba(255,255,255,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;animation:alarmPulse 1s infinite}
+@keyframes alarmPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+.alarm-header h2{color:#fff;font-size:17px;font-weight:700;font-family:var(--font-ui)}
+.alarm-header p{color:rgba(255,255,255,0.8);font-size:11px;margin-top:2px;font-family:var(--font-data)}
+.alarm-body{padding:20px 24px}
+.alarm-body .alarm-sub{font-size:12px;color:var(--text-secondary);margin-bottom:14px}
+.alarm-tr-list{display:flex;flex-direction:column;gap:8px;max-height:240px;overflow-y:auto}
+.alarm-tr-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;background:#fff5f5;border:1px solid #fecaca}
+.alarm-tr-item .tr-id{font-family:var(--font-data);font-size:12px;font-weight:700;color:#bf3030;min-width:90px}
+.alarm-tr-item .tr-info{font-size:11px;color:var(--text-secondary);flex:1}
+.alarm-tr-item .tr-pct{font-family:var(--font-data);font-size:16px;font-weight:700;color:#bf3030}
+.alarm-tr-item .tr-bar{width:100%;height:5px;background:#fee2e2;border-radius:3px;margin-top:5px}
+.alarm-tr-item .tr-bar-fill{height:100%;border-radius:3px;background:#bf3030}
+.alarm-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;background:var(--bg-elevated)}
+.btn-alarm-close{padding:8px 20px;font-size:13px;font-family:var(--font-ui);background:transparent;border:1px solid var(--border-light);color:var(--text-secondary);border-radius:8px;cursor:pointer;font-weight:500}
+.btn-alarm-close:hover{background:var(--bg-elevated)}
+.btn-alarm-confirm{padding:8px 20px;font-size:13px;font-family:var(--font-ui);background:#bf3030;border:none;color:#fff;border-radius:8px;cursor:pointer;font-weight:600}
+.btn-alarm-confirm:hover{background:#9b2020}
+/* 알람 히스토리 배지 */
+#alarmHistBadge{position:fixed;bottom:92px;right:28px;background:#bf3030;color:#fff;border-radius:12px;padding:3px 9px;font-size:10px;font-family:var(--font-data);font-weight:700;display:none;z-index:498;box-shadow:0 2px 8px rgba(191,48,48,0.4)}
+/* 테스트 버튼 */
+.btn-alarm-test{padding:5px 12px;font-size:10px;font-family:var(--font-data);background:rgba(191,48,48,0.08);border:1px dashed #bf3030;color:#bf3030;border-radius:6px;cursor:pointer;letter-spacing:.03em;transition:all .15s}
+.btn-alarm-test:hover{background:#bf3030;color:#fff}
 </style>
 </head>
 <body>
 <!-- 전체화면 드래그 오버레이 -->
+
+<!-- ════ 경고 알람 팝업 ════ -->
+<div id="alarmOverlay" onclick="if(event.target===this)closeAlarm()">
+  <div id="alarmBox">
+    <div class="alarm-header">
+      <div class="alarm-icon">🚨</div>
+      <div>
+        <h2>⚠ 변압기 과부하 경고</h2>
+        <p id="alarmHeaderSub">위험 수준 변압기가 감지됐습니다</p>
+      </div>
+    </div>
+    <div class="alarm-body">
+      <div class="alarm-sub" id="alarmSub"></div>
+      <div class="alarm-tr-list" id="alarmTrList"></div>
+    </div>
+    <div class="alarm-footer">
+      <button class="btn-alarm-close" onclick="closeAlarm()">나중에 확인</button>
+      <button class="btn-alarm-confirm" onclick="goToTable()">즉시 확인하기 →</button>
+    </div>
+  </div>
+</div>
+
+<!-- 알람 횟수 배지 -->
+<div id="alarmHistBadge" style="display:none!important" onclick="showAlarmHistory()">🔔 <span id="alarmHistCount">0</span>건</div>
+
 <div id="dragOverlay">
   <div class="drag-icon">📂</div>
   <div class="drag-msg">엑셀 파일을 여기에 놓으세요!</div>
@@ -522,6 +577,9 @@ code{font-family:var(--font-data);font-size:10px;background:var(--bg-elevated);p
     <button class="btn-ghost" id="btnDisconnect" onclick="disconnectFile()" style="display:none;font-size:11px;padding:5px 12px;color:var(--red)">
       ✕ 연동 해제
     </button>
+    <!-- 알람 테스트 버튼 — BECON 실시간 연동 후 활성화 예정
+    <button class="btn-alarm-test" onclick="testAlarm()">🔔 알람 테스트</button>
+    -->
     <span class="sync-time" id="syncTime"></span>
   </div>
 
@@ -1478,6 +1536,9 @@ function updateAll(){
     document.getElementById('k-peak-sub').textContent='한전 고지서 미입력';
     document.getElementById('k-peak-card').style.borderTopColor='var(--border)';
   }
+
+  // 위험 변압기 경고 알람 체크 — BECON 실시간 연동 후 활성화 예정
+  // checkAndAlert(active, curYear);
 
   if(curDataType==='usage'){
     // 사용량 모드
@@ -3139,6 +3200,144 @@ function handleUsageUpload(event){
   reader.readAsArrayBuffer(file);
   event.target.value='';
 }
+
+// ════════════════════════════════════════════════════════
+// 경고 알람 시스템
+// ════════════════════════════════════════════════════════
+let alarmHistory   = [];  // 알람 이력
+let alarmDismissed = {};  // 이번 세션에서 닫은 알람 키
+
+// ── 위험 변압기 감지 및 팝업 표시
+function checkAndAlert(active, yr){
+  if(curDataType !== 'peak') return;  // 피크전력 모드일 때만
+
+  const dangers = active
+    .filter(t=>{ const mx=maxOf(t.d[yr]); return mx!==null && mx>=80; })
+    .map(t=>({ id:t.id, group:t.group, use:t.use, pct:maxOf(t.d[yr]) }))
+    .sort((a,b)=>b.pct-a.pct);
+
+  if(!dangers.length) return;
+
+  // 이미 닫은 조합은 스킵
+  const key = dangers.map(d=>d.id).join(',') + '_' + yr;
+  if(alarmDismissed[key]) return;
+
+  showAlarmPopup(dangers, yr);
+}
+
+// ── 팝업 표시
+function showAlarmPopup(dangers, yr){
+  const now = new Date().toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+
+  // 헤더 서브
+  document.getElementById('alarmHeaderSub').textContent =
+    yr+'년 기준 · 위험 변압기 '+dangers.length+'대 감지 · '+now;
+
+  // 서브 텍스트
+  document.getElementById('alarmSub').textContent =
+    '아래 변압기의 최대 부하율이 80%를 초과했습니다. 즉시 점검이 필요합니다.';
+
+  // 변압기 목록
+  document.getElementById('alarmTrList').innerHTML = dangers.map(d=>`
+    <div class="alarm-tr-item">
+      <div>
+        <div class="tr-id">${d.id}</div>
+        <div class="tr-info">${d.group} · ${d.use}</div>
+        <div class="tr-bar"><div class="tr-bar-fill" style="width:${Math.min(d.pct,100)}%"></div></div>
+      </div>
+      <div class="tr-pct">${d.pct.toFixed(1)}%</div>
+    </div>`).join('');
+
+  // 팝업 표시
+  document.getElementById('alarmOverlay').classList.add('active');
+
+  // 히스토리 기록
+  alarmHistory.unshift({ time:now, yr, dangers:[...dangers] });
+  if(alarmHistory.length > 20) alarmHistory.pop();
+  updateAlarmBadge();
+
+  // 브라우저 알림 (허용된 경우)
+  if(Notification.permission==='granted'){
+    new Notification('⚠ 변압기 과부하 경고', {
+      body: dangers.map(d=>d.id+' '+d.pct.toFixed(1)+'%').join(' / '),
+      icon: ''
+    });
+  }
+}
+
+// ── 팝업 닫기
+function closeAlarm(){
+  document.getElementById('alarmOverlay').classList.remove('active');
+  // 현재 감지된 조합 기억 (세션 내 재알람 방지)
+  const yr = curYear;
+  const active = getActive();
+  const dangers = active.filter(t=>{ const mx=maxOf(t.d[yr]); return mx!==null&&mx>=80; });
+  if(dangers.length){
+    const key = dangers.map(d=>d.id).join(',') + '_' + yr;
+    alarmDismissed[key] = true;
+  }
+}
+
+// ── 즉시 확인 (부하여유율 표로 이동)
+function goToTable(){
+  closeAlarm();
+  if(curDataType==='usage') setDataType('peak', document.getElementById('dtPeak'));
+  showPage('table');
+  document.querySelectorAll('.nav-item').forEach(n=>{
+    n.classList.toggle('active', n.getAttribute('onclick')&&n.getAttribute('onclick').includes('table'));
+  });
+}
+
+// ── 배지 업데이트
+function updateAlarmBadge(){
+  const badge = document.getElementById('alarmHistBadge');
+  const cnt   = document.getElementById('alarmHistCount');
+  if(alarmHistory.length){
+    badge.style.display = 'block';
+    cnt.textContent = alarmHistory.length;
+  }
+}
+
+// ── 알람 이력 표시
+function showAlarmHistory(){
+  if(!alarmHistory.length) return;
+  const lines = alarmHistory.slice(0,5).map((h,i)=>(i+1)+'. '+h.time+' — '+h.yr+'년 '+h.dangers.map(d=>d.id+' '+d.pct.toFixed(1)+'%').join(', ')).join('\n');
+  alert('[알람 이력] 최근 '+alarmHistory.length+'건\n\n'+lines);
+}
+
+// ── 알람 테스트 버튼
+function testAlarm(){
+  // 현재 데이터에서 위험 변압기가 없으면 가상 데이터로 테스트
+  const yr     = curYear;
+  const active = getActive();
+  const real   = active.filter(t=>{ const mx=maxOf(t.d[yr]); return mx!==null&&mx>=80; });
+
+  if(real.length){
+    // 실제 위험 변압기로 테스트
+    showAlarmPopup(real.map(t=>({id:t.id,group:t.group,use:t.use,pct:maxOf(t.d[yr])})), yr);
+  } else {
+    // 가상 테스트 데이터
+    const testDangers = [
+      {id:'TR-M3', group:'UT동', use:'UT,R1,R2,M1,물류', pct:82.5},
+      {id:'TR-203', group:'M1동', use:'시험용 인버터 #1', pct:80.3}
+    ];
+    showAlarmPopup(testDangers, yr);
+  }
+
+  // 브라우저 알림 권한 요청
+  if(Notification.permission==='default'){
+    Notification.requestPermission().then(p=>{
+      if(p==='granted') console.log('브라우저 알림 권한 허용됨');
+    });
+  }
+}
+
+// ── 브라우저 알림 권한 초기 요청 (최초 1회)
+(function requestNotificationPermission(){
+  if(Notification.permission==='default'){
+    // 사용자 인터랙션 후 자동 요청 대신, 테스트 버튼에서 처리
+  }
+})();
 // Init
 renderZoneBtns();
 updateAll();
