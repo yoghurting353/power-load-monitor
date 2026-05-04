@@ -380,7 +380,23 @@ code{font-family:var(--font-data);font-size:10px;background:var(--bg-elevated);p
     <p>Power Load Monitor v2.0</p>
   </div>
 
-  <div class="sidebar-section">분석 메뉴</div>
+  <!-- 데이터 타입 선택 -->
+  <div style="padding:10px 12px 6px">
+    <div style="font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);font-family:var(--font-data);margin-bottom:6px">데이터 타입</div>
+    <div style="display:flex;background:var(--bg-elevated);border-radius:8px;padding:3px;border:1px solid var(--border);gap:2px">
+      <button id="dtPeak" onclick="setDataType('peak',this)"
+        style="flex:1;padding:5px 4px;font-size:10px;font-weight:600;font-family:var(--font-data);border:none;border-radius:6px;cursor:pointer;transition:all .15s;background:#1d6fbf;color:#fff;letter-spacing:.02em">
+        ⚡ 피크전력
+      </button>
+      <button id="dtUsage" onclick="setDataType('usage',this)"
+        style="flex:1;padding:5px 4px;font-size:10px;font-weight:600;font-family:var(--font-data);border:none;border-radius:6px;cursor:pointer;transition:all .15s;background:transparent;color:var(--text-muted);letter-spacing:.02em">
+        📊 사용량
+      </button>
+    </div>
+    <div id="dtLabel" style="font-size:9px;color:var(--text-muted);font-family:var(--font-data);margin-top:4px;text-align:center">KW · 월별 최대전력 기준</div>
+  </div>
+
+  <div class="sidebar-section" style="margin-top:4px">분석 메뉴</div>
   <div class="nav-item active" onclick="showPage('overview')">
     <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
     전체 현황
@@ -391,7 +407,7 @@ code{font-family:var(--font-data);font-size:10px;background:var(--bg-elevated);p
   </div>
   <div class="nav-item" onclick="showPage('table')">
     <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-    부하여유율 표
+    <span id="nav-table-label">부하여유율 표</span>
   </div>
 
   <div class="sidebar-section" style="margin-top:8px">데이터 기준</div>
@@ -464,6 +480,7 @@ code{font-family:var(--font-data);font-size:10px;background:var(--bg-elevated);p
     <button class="mob-nav-item" onclick="mobShowPage('table',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>부하여유율 표
     </button>
+
   </div>
 
   <!-- HEADER -->
@@ -810,6 +827,138 @@ code{font-family:var(--font-data);font-size:10px;background:var(--bg-elevated);p
       </div>
     </div>
 
+    <!-- PAGE: 전력사용량 (kWh) -->
+    <div id="page-usage" style="display:none">
+
+      <!-- 안내 배너 -->
+      <div style="background:var(--accent-blue-glow);border:1px solid var(--accent-blue);border-radius:8px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;stroke:var(--accent-blue);flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <div>
+          <div style="font-size:12px;font-weight:600;color:var(--accent-blue)">전력사용량(kWh) 데이터 입력 필요</div>
+          <div style="font-size:11px;color:var(--text-secondary);margin-top:2px">현재 피크전력(kW) 데이터만 입력되어 있습니다. BECON 또는 한전 고지서 기반 월별 사용량(kWh) 데이터를 업로드하시면 사용량 분석이 가능합니다.</div>
+        </div>
+        <label class="btn-sync" style="margin-left:auto;cursor:pointer;white-space:nowrap;font-size:11px;display:flex;align-items:center;gap:5px;flex-shrink:0">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;stroke:currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          사용량 파일 업로드
+          <input type="file" accept=".xlsx,.xls" style="display:none" onchange="handleUsageUpload(event)">
+        </label>
+      </div>
+
+      <!-- KPI -->
+      <div class="kpi-row" style="margin-bottom:16px">
+        <div class="kpi-card c-blue">
+          <div class="kpi-lbl">연간 총 사용량</div>
+          <div class="kpi-val" id="u-total">—</div>
+          <div class="kpi-sub" id="u-total-sub">MWh</div>
+        </div>
+        <div class="kpi-card c-green">
+          <div class="kpi-lbl">월 평균 사용량</div>
+          <div class="kpi-val" id="u-avg">—</div>
+          <div class="kpi-sub">MWh/월</div>
+        </div>
+        <div class="kpi-card c-amber">
+          <div class="kpi-lbl">최대 사용월</div>
+          <div class="kpi-val" id="u-max-month">—</div>
+          <div class="kpi-sub" id="u-max-val">MWh</div>
+        </div>
+        <div class="kpi-card c-red">
+          <div class="kpi-lbl">전년 대비</div>
+          <div class="kpi-val" id="u-yoy">—</div>
+          <div class="kpi-sub" id="u-yoy-sub">증감율</div>
+        </div>
+      </div>
+
+      <!-- 월별 사용량 차트 + Zone 비율 -->
+      <div class="grid-2" style="margin-bottom:16px">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">월별 전력사용량</div>
+              <div class="panel-sub" id="u-bar-sub">kWh 기준</div>
+            </div>
+            <div class="legend">
+              <div class="leg"><div class="leg-dot" style="background:var(--accent-blue)"></div>사용량(kWh)</div>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="chart-wrap" style="height:220px">
+              <canvas id="usageBarChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">Zone별 사용량 비율</div>
+              <div class="panel-sub">kWh 기준 구성 비율</div>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="chart-wrap" style="height:220px">
+              <canvas id="usagePieChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 연도 비교 차트 -->
+      <div class="panel" style="margin-bottom:16px">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">연도별 월간 사용량 비교</div>
+            <div class="panel-sub">2023~2026년 kWh 추이</div>
+          </div>
+          <select class="sel" id="usageTrSel" onchange="renderUsageTrend()">
+            <option value="total">사업장 전체</option>
+            <option value="UT동">UT동</option>
+            <option value="M1동">M1동</option>
+            <option value="R2동">R2동</option>
+            <option value="데이터센터">데이터센터</option>
+          </select>
+        </div>
+        <div class="panel-body">
+          <div class="chart-wrap" style="height:200px">
+            <canvas id="usageTrendChart"></canvas>
+          </div>
+        </div>
+        <div class="note">※ kWh 데이터: BECON energy 또는 한전 고지서 기준 · 데이터 업로드 후 자동 반영</div>
+      </div>
+
+      <!-- 사용량 현황표 -->
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">월별 사용량 현황표</div>
+            <div class="panel-sub" id="u-tbl-sub">kWh · 연도별 비교</div>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="data-table" id="usageTable">
+            <thead>
+              <tr>
+                <th>구분</th>
+                <th class="right">1월</th><th class="right">2월</th><th class="right">3월</th>
+                <th class="right">4월</th><th class="right">5월</th><th class="right">6월</th>
+                <th class="right">7월</th><th class="right">8월</th><th class="right">9월</th>
+                <th class="right">10월</th><th class="right">11월</th><th class="right">12월</th>
+                <th class="right" style="color:var(--accent-blue)">합계</th>
+              </tr>
+            </thead>
+            <tbody id="usageTableBody">
+              <tr>
+                <td colspan="14" style="text-align:center;padding:32px;color:var(--text-muted);font-size:12px">
+                  📂 사용량(kWh) 데이터를 업로드하면 여기에 표시됩니다
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note">※ 피크전력(kW)과 별도 데이터 · 엑셀 파일 업로드 또는 직접 BECON 연동 시 자동 갱신</div>
+      </div>
+
+    </div>
+
   </div><!-- /content -->
 </div><!-- /main -->
 </div><!-- /layout -->
@@ -1015,7 +1164,7 @@ function setSite(site, btn){
   if(hTitle) hTitle.textContent = siteLabel + ' — 변압기 부하 분석';
   if(mTitle) mTitle.textContent = siteLabel + ' — 변압기 부하 분석';
 
-  ['page-overview','page-trend','page-table'].forEach(id=>{
+  ['page-overview','page-trend','page-table','page-pyeongtaek'].forEach(id=>{
     const el=document.getElementById(id);
     if(el) el.style.display='none';
   });
@@ -1239,7 +1388,7 @@ function setGroup(g,btn){
 }
 function showPage(p){
   curPage=p;
-  ['overview','trend','table'].forEach(pg=>{
+  ['overview','trend','table','usage'].forEach(pg=>{
     document.getElementById('page-'+pg).style.display=pg===p?'block':'none';
   });
   document.querySelectorAll('.nav-item').forEach(n=>{
@@ -1247,6 +1396,7 @@ function showPage(p){
   });
   if(p==='trend')updateTrendPage();
   if(p==='table')renderTable();
+  if(p==='usage')renderUsagePage();
 }
 
 
@@ -1329,13 +1479,21 @@ function updateAll(){
     document.getElementById('k-peak-card').style.borderTopColor='var(--border)';
   }
 
-  updateBar(active);
-  populateSelects(active);
-  updateLine();
-  updateCompare();
-  updateZonePie();
-  if(curPage==='table')renderTable();
-  if(curPage==='trend')updateTrendPage();
+  if(curDataType==='usage'){
+    // 사용량 모드
+    updateUsageOverview();
+    if(curPage==='table')renderUsageTable(curYear);
+    if(curPage==='trend')renderUsageTrend();
+  } else {
+    // 피크전력 모드 (기존)
+    updateBar(active);
+    populateSelects(active);
+    updateLine();
+    updateCompare();
+    updateZonePie();
+    if(curPage==='table')renderTable();
+    if(curPage==='trend')updateTrendPage();
+  }
 }
 
 function updateBar(active){
@@ -1344,7 +1502,10 @@ function updateBar(active){
   const colors=vals.map(barColor);
   const h=Math.max(320,active.length*30+80);
   document.getElementById('barWrap').style.height=h+'px';
-  document.getElementById('bar-sub').textContent=curYear+'년 · '+active.length+'개 변압기';
+  const isPeakMode = curDataType!=='usage';
+  document.getElementById('bar-sub').textContent = isPeakMode
+    ? curYear+'년 · '+active.length+'개 변압기'
+    : curYear+'년 월별 전력사용량 (MWh)';
 
   const ctx=document.getElementById('barChart').getContext('2d');
   if(barInst){barInst.destroy();barInst=null;}
@@ -2551,6 +2712,433 @@ ${getDashboardContext()}
   }
 })();
 
+
+
+// ════════════════════════════════════════════════════════
+// 데이터 타입 전환 (피크전력 KW ↔ 전력사용량 KWh)
+// ════════════════════════════════════════════════════════
+let curDataType = 'peak'; // 'peak' | 'usage'
+
+function setDataType(type, btn){
+  curDataType = type;
+  const isPeak = type==='peak';
+
+  // 토글 버튼 스타일
+  document.getElementById('dtPeak').style.background  = isPeak?'#1d6fbf':'transparent';
+  document.getElementById('dtPeak').style.color        = isPeak?'#fff':'var(--text-muted)';
+  document.getElementById('dtUsage').style.background = !isPeak?'#1a8a3a':'transparent';
+  document.getElementById('dtUsage').style.color       = !isPeak?'#fff':'var(--text-muted)';
+
+  // 라벨
+  document.getElementById('dtLabel').textContent = isPeak
+    ? 'KW · 월별 최대전력 기준'
+    : 'KWh · 월별 전력사용량 기준';
+
+  // 헤더 배지
+  const badge = document.getElementById('year-badge');
+  if(badge) badge.textContent = curYear+'년 '+(isPeak?'피크전력':'사용량');
+
+  // 탭 라벨 변경
+  const tblLabel = document.getElementById('nav-table-label');
+  if(tblLabel) tblLabel.textContent = isPeak?'부하여유율 표':'사용량 현황표';
+
+  // 페이지 갱신
+  updateAll();
+}
+
+// ════════════════════════════════════════════════════════
+// 전력사용량(kWh) 탭
+// ════════════════════════════════════════════════════════
+
+// ── KWh 데이터 (SHV-102 기준 사업장 전체 월별 사용량)
+// ※ 실제 한전 고지서 또는 BECON 데이터로 교체 필요
+// ※ 현재값은 피크KW × 평균가동시간(약 500h) 기반 추정치
+const USAGE_KWH = {
+  site: {  // 사업장 전체 (SHV-102 기준 추정)
+    2023:[2551000,2162250,2169000,1584800,1627950,2004750,1691550,2135650,2048850,1690200,2169000,1773850],
+    2024:[1729350,1780200,2229750,2471850,2260350,2083500,2056950,2073600,2424600,2029950,1250900,1607850],
+    2025:[1505250,1814400,2112300,2654100,1791450,1656000,1391850,1816200,1964700,2100900,2734200,1851300],
+    2026:[2201850,1868400,1434150,null,null,null,null,null,null,null,null,null]
+  },
+  zones: {  // Zone별 추정 KWh (LV-101/HV-201/HV-401/SHV-108 기준)
+    'UT동': {
+      2023:[190500,167400,162000,159750,157500,155700,167400,161100,162900,151200,163800,165600],
+      2024:[158850,154350,162900,160200,161100,146700,184950,180450,168750,162450,150300,169200],
+      2025:[163350,163350,166500,153000,160650,163350,169650,165600,168750,157500,155700,176850],
+      2026:[173250,167400,166500,null,null,null,null,null,null,null,null,null]
+    },
+    'M1동': {
+      2023:[1158750,1207350,622800,852000,786150,1086300,1240200,1344150,null,360000,976950,702900],
+      2024:[815850,807300,1173150,1457100,999450,738900,1003050,1045800,1284750,996300,null,735300],
+      2025:[481950,1071900,1458900,1492650,678150,669150,null,null,454050,673950,568350,null],
+      2026:[801000,553950,435600,null,null,null,null,null,null,null,null,null]
+    },
+    'R2동': {
+      2023:[541800,325800,346950,319050,455400,484650,627000,562950,431100,485100,393750,540450],
+      2024:[511200,595800,667350,703800,539100,513450,798750,757800,612900,482400,null,760050],
+      2025:[700650,603450,533700,681300,544950,507600,632250,838800,847350,743850,634500,744750],
+      2026:[807750,785250,673650,null,null,null,null,null,null,null,null,null]
+    },
+    '데이터센터': {
+      2023:[null,null,null,null,null,null,null,null,null,null,null,null],
+      2024:[null,null,null,null,null,null,null,null,null,null,null,null],
+      2025:[null,null,null,402750,476550,591300,266850,526500,551700,539550,688050,443700],
+      2026:[414450,471150,508950,null,null,null,null,null,null,null,null,null]
+    }
+  }
+};
+
+let usageBarInst=null, usagePieInst=null, usageTrendInst=null;
+const ZONE_COLORS_LIST=['#1d6fbf','#1a8a3a','#b07010','#0891b2','#8b5cf6'];
+const ZONE_NAMES=['UT동','M1동','R2동','데이터센터'];
+
+function getUsageData(){
+  return USAGE_KWH;
+}
+
+
+// ── 사용량 모드: 전체 현황 탭 갱신
+function updateUsageOverview(){
+  const yr = curYear;
+  const siteData = USAGE_KWH.site[yr].filter(v=>v!==null&&v!==undefined);
+  const total = siteData.reduce((a,b)=>a+b,0);
+  const avg   = siteData.length ? Math.round(total/siteData.length) : 0;
+  const mx    = siteData.length ? Math.max(...siteData) : 0;
+  const mxMon = USAGE_KWH.site[yr].indexOf(mx);
+
+  // KPI 카드 덮어쓰기
+  document.getElementById('k-count').textContent     = siteData.length+'개월';
+  document.getElementById('k-count-sub').textContent = yr+'년 데이터 기준';
+  document.getElementById('k-avg').textContent       = avg?(avg/1000).toFixed(1)+' MWh':'—';
+  document.getElementById('k-avg-sub').textContent   = '월 평균 사용량';
+  document.getElementById('k-max').textContent       = mx?(mx/1000).toFixed(1)+' MWh':'—';
+  document.getElementById('k-max-sub').textContent   = mx&&mxMon>=0?MONTHS[mxMon]+' 최대':'—';
+  document.getElementById('k-warn').textContent      = total?(total/1000).toFixed(0)+' MWh':'—';
+  document.getElementById('k-warn-sub').textContent  = '연간 총 사용량';
+  document.getElementById('k-margin').textContent    = '—';
+
+  // 전년 대비
+  const prevYr   = yr-1;
+  const prevSite = USAGE_KWH.site[prevYr];
+  if(prevSite){
+    const months = siteData.length;
+    const cur  = USAGE_KWH.site[yr].slice(0,months).filter(v=>v!==null).reduce((a,b)=>a+b,0);
+    const prev = prevSite.slice(0,months).filter(v=>v!==null).reduce((a,b)=>a+b,0);
+    if(prev){
+      const yoy = ((cur-prev)/prev*100).toFixed(1);
+      document.getElementById('k-contract').textContent     = (yoy>0?'+':'')+yoy+'%';
+      document.getElementById('k-contract-sub').textContent = prevYr+'년 동기 대비';
+      document.getElementById('k-contract').style.color     = yoy>0?'var(--red)':'var(--green)';
+    }
+  }
+
+  // 바 차트 → 월별 사용량 MWh
+  renderUsageBarChart(yr);
+  // 파이차트 → Zone별 사용량
+  updateZonePieUsage(yr);
+}
+
+// ── 사용량 모드 Zone 파이차트
+function updateZonePieUsage(yr){
+  const monthIdx = document.getElementById('pieMonthSel').value;
+  const zones    = ['UT동','M1동','R2동','데이터센터'];
+  const colors   = ['#1d6fbf','#1a8a3a','#b07010','#0891b2'];
+  const vals     = zones.map(z=>{
+    const d = USAGE_KWH.zones[z]&&USAGE_KWH.zones[z][yr]?USAGE_KWH.zones[z][yr]:Array(12).fill(null);
+    if(monthIdx==='avg'){
+      const v=d.filter(x=>x!==null&&x!==undefined);
+      return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length/1000):0;
+    } else {
+      const v=d[parseInt(monthIdx)];
+      return v!==null&&v!==undefined?Math.round(v/1000):0;
+    }
+  });
+  const total = vals.reduce((a,b)=>a+b,0);
+
+  document.getElementById('pieTotalKW').textContent = total.toLocaleString();
+  document.getElementById('pie-sub').textContent    = yr+'년 Zone별 전력사용량 (MWh)';
+
+  if(pieInst){pieInst.destroy();pieInst=null;}
+  const ctx = document.getElementById('pieChart').getContext('2d');
+  pieInst = new Chart(ctx,{
+    type:'doughnut',
+    data:{labels:zones, datasets:[{data:vals,backgroundColor:colors,borderColor:'#fff',borderWidth:3,hoverOffset:10}]},
+    options:{
+      responsive:true, maintainAspectRatio:false, cutout:'62%',
+      plugins:{
+        legend:{display:false},
+        tooltip:{backgroundColor:'#ffffff',borderColor:'#e2e6ed',borderWidth:1,
+          titleColor:'#1a2332',bodyColor:'#4a5a72',padding:12,
+          callbacks:{label:c=>{const p=total>0?(c.parsed/total*100).toFixed(1):0; return ' '+c.label+': '+c.parsed.toLocaleString()+' MWh ('+p+'%)';}}}
+      }
+    }
+  });
+
+  // Zone 카드
+  document.getElementById('zoneCards').innerHTML = zones.map((z,i)=>{
+    const kw=vals[i]; const pct=total>0?(kw/total*100).toFixed(1):0;
+    const col=ZONE_COLORS[z]||{bg:colors[i],light:'rgba(0,0,0,0.04)',border:'rgba(0,0,0,0.1)'};
+    return '<div style="background:'+col.light+';border:1px solid '+col.border+';border-radius:8px;padding:12px 14px;border-left:3px solid '+col.bg+'">'
+      +'<div style="font-size:10px;font-weight:700;color:'+col.bg+';font-family:var(--font-data);letter-spacing:.05em;margin-bottom:4px">'+z+'</div>'
+      +'<div style="font-size:20px;font-weight:700;font-family:var(--font-data);color:var(--text-primary);line-height:1">'+kw.toLocaleString()+'</div>'
+      +'<div style="font-size:10px;color:var(--text-muted);font-family:var(--font-data);margin-top:2px">MWh</div>'
+      +'<div style="margin-top:8px;height:4px;background:rgba(0,0,0,0.08);border-radius:2px">'
+      +'<div style="height:100%;width:'+Math.min(pct,100)+'%;background:'+col.bg+';border-radius:2px"></div></div>'
+      +'<div style="font-size:11px;font-weight:600;color:'+col.bg+';font-family:var(--font-data);margin-top:4px">사업장 대비 '+pct+'%</div>'
+      +'</div>';
+  }).join('');
+
+  // 테이블
+  const rows = zones.map((z,i)=>{
+    const kw=vals[i]; const pct=total>0?(kw/total*100).toFixed(1):0;
+    const col=ZONE_COLORS[z]||{bg:colors[i]};
+    return '<tr>'
+      +'<td style="padding:8px 12px;border-bottom:1px solid var(--border)"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:'+col.bg+';margin-right:7px;vertical-align:middle"></span><span style="font-weight:600;font-size:13px">'+z+'</span></td>'
+      +'<td style="padding:8px 12px;border-bottom:1px solid var(--border);font-family:var(--font-data);font-size:13px;font-weight:600;text-align:right">'+kw.toLocaleString()+' MWh</td>'
+      +'<td style="padding:8px 12px;border-bottom:1px solid var(--border);font-family:var(--font-data);font-size:13px;font-weight:700;text-align:right;color:'+col.bg+'">'+pct+'%</td>'
+      +'<td style="padding:8px 12px;border-bottom:1px solid var(--border);font-size:11px;color:var(--text-muted)">KWh 추정치</td>'
+      +'</tr>';
+  }).join('');
+  document.getElementById('zoneMiniTable').innerHTML =
+    '<table style="width:100%;border-collapse:collapse;border:0.5px solid var(--border);border-radius:8px;overflow:hidden">'
+    +'<thead><tr style="background:var(--bg-elevated)">'
+    +'<th style="padding:8px 12px;font-size:9px;font-family:var(--font-data);color:var(--text-muted);letter-spacing:.08em;text-transform:uppercase;text-align:left">Zone</th>'
+    +'<th style="padding:8px 12px;font-size:9px;font-family:var(--font-data);color:var(--text-muted);letter-spacing:.08em;text-transform:uppercase;text-align:right">사용량 (MWh)</th>'
+    +'<th style="padding:8px 12px;font-size:9px;font-family:var(--font-data);color:var(--text-muted);letter-spacing:.08em;text-transform:uppercase;text-align:right">비율</th>'
+    +'<th style="padding:8px 12px;font-size:9px;font-family:var(--font-data);color:var(--text-muted);letter-spacing:.08em;text-transform:uppercase;text-align:left">비고</th>'
+    +'</tr></thead><tbody>'+rows+'</tbody></table>';
+
+  document.getElementById('pie-note').textContent = '※ '+yr+'년 Zone별 전력사용량 (MWh) · KWh 추정치 기반';
+}
+// ── 사용량 페이지 전체 렌더
+function renderUsagePage(){
+  const yr = curYear;
+  const siteData = USAGE_KWH.site[yr].filter(v=>v!==null&&v!==undefined);
+  const total = siteData.reduce((a,b)=>a+b,0);
+  const avg   = siteData.length ? Math.round(total/siteData.length) : 0;
+  const maxVal = Math.max(...siteData);
+  const maxMon = MONTHS[USAGE_KWH.site[yr].indexOf(maxVal)];
+
+  // KPI
+  document.getElementById('u-total').textContent     = total?(total/1000).toFixed(0).toLocaleString()+' MWh':'—';
+  document.getElementById('u-total-sub').textContent = yr+'년 합계 (SHV-102 기준)';
+  document.getElementById('u-avg').textContent       = avg?(avg/1000).toFixed(1)+' MWh':'—';
+  document.getElementById('u-max-month').textContent = maxMon||'—';
+  document.getElementById('u-max-val').textContent   = maxVal?(maxVal/1000).toFixed(1)+' MWh':'-';
+
+  // 전년 대비
+  const prevYr = yr-1;
+  const prevData = USAGE_KWH.site[prevYr]?USAGE_KWH.site[prevYr].filter(v=>v!==null&&v!==undefined):[];
+  if(prevData.length && siteData.length){
+    const prevTotal = prevData.reduce((a,b)=>a+b,0);
+    const months = Math.min(siteData.length, prevData.length);
+    const curPartial  = USAGE_KWH.site[yr].slice(0,months).filter(v=>v!==null).reduce((a,b)=>a+b,0);
+    const prevPartial = USAGE_KWH.site[prevYr].slice(0,months).filter(v=>v!==null).reduce((a,b)=>a+b,0);
+    const yoy = prevPartial ? ((curPartial-prevPartial)/prevPartial*100).toFixed(1) : null;
+    document.getElementById('u-yoy').textContent     = yoy!==null?(yoy>0?'+':'')+yoy+'%':'—';
+    document.getElementById('u-yoy').style.color     = yoy>0?'var(--red)':yoy<0?'var(--green)':'var(--text-primary)';
+    document.getElementById('u-yoy-sub').textContent = prevYr+'년 동기 대비';
+  } else {
+    document.getElementById('u-yoy').textContent='—';
+    document.getElementById('u-yoy-sub').textContent='전년 데이터 없음';
+  }
+
+  document.getElementById('u-bar-sub').textContent = yr+'년 월별 사용량 (SHV-102 기준 추정치)';
+  document.getElementById('u-tbl-sub').textContent = 'kWh · 연도별 비교 (SHV-102 기준 추정치)';
+
+  renderUsageBarChart(yr);
+  renderUsagePieChart(yr);
+  renderUsageTrend();
+  renderUsageTable(yr);
+}
+
+// ── 월별 사용량 바 차트
+function renderUsageBarChart(yr){
+  const data = USAGE_KWH.site[yr].map(v=>v!==null?Math.round(v/1000):null);
+  const ctx  = document.getElementById('usageBarChart').getContext('2d');
+  if(usageBarInst){usageBarInst.destroy();usageBarInst=null;}
+  usageBarInst = new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels: MONTHS,
+      datasets:[{
+        label:'사용량(MWh)',
+        data,
+        backgroundColor: data.map(v=>v===null?'rgba(0,0,0,0.05)':'rgba(29,111,191,0.75)'),
+        borderColor:'#1d6fbf',
+        borderWidth:1,
+        borderRadius:4
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:'#ffffff',borderColor:'#e2e6ed',borderWidth:1,
+          titleColor:'#1a2332',bodyColor:'#4a5a72',padding:10,
+          callbacks:{label:c=>c.parsed.y!==null?'사용량: '+c.parsed.y.toLocaleString()+' MWh':'데이터 없음'}
+        }
+      },
+      scales:{
+        x:{ticks:{color:'#8a9ab4',font:{size:10,family:"'JetBrains Mono',monospace"}},grid:{display:false},border:{color:'#e2e6ed'}},
+        y:{ticks:{callback:v=>v+'MWh',color:'#8a9ab4',font:{size:10,family:"'JetBrains Mono',monospace"}},grid:{color:'rgba(0,0,0,0.05)'},border:{color:'#e2e6ed'}}
+      }
+    }
+  });
+}
+
+// ── Zone별 사용량 파이차트
+function renderUsagePieChart(yr){
+  const zones = ZONE_NAMES;
+  const vals  = zones.map(z=>{
+    const d = USAGE_KWH.zones[z]?USAGE_KWH.zones[z][yr]:null;
+    if(!d) return 0;
+    const v = d.filter(x=>x!==null&&x!==undefined);
+    return v.length?Math.round(v.reduce((a,b)=>a+b,0)/1000):0;
+  });
+  const total = vals.reduce((a,b)=>a+b,0);
+  const labels = zones.map((z,i)=>z+' ('+vals[i].toLocaleString()+' MWh)');
+
+  const ctx = document.getElementById('usagePieChart').getContext('2d');
+  if(usagePieInst){usagePieInst.destroy();usagePieInst=null;}
+  usagePieInst = new Chart(ctx,{
+    type:'doughnut',
+    data:{
+      labels,
+      datasets:[{data:vals, backgroundColor:ZONE_COLORS_LIST, borderColor:'#fff', borderWidth:3, hoverOffset:8}]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false, cutout:'60%',
+      plugins:{
+        legend:{display:true,position:'right',labels:{color:'#4a5a72',font:{size:11,family:"'Noto Sans KR',sans-serif"},boxWidth:12,padding:10}},
+        tooltip:{
+          backgroundColor:'#ffffff',borderColor:'#e2e6ed',borderWidth:1,
+          titleColor:'#1a2332',bodyColor:'#4a5a72',padding:10,
+          callbacks:{label:c=>' '+c.label.split(' ')[0]+': '+(total>0?(c.parsed/total*100).toFixed(1):'0')+'%'}
+        }
+      }
+    }
+  });
+}
+
+// ── 연도별 추이 차트
+function renderUsageTrend(){
+  const sel    = document.getElementById('usageTrSel').value;
+  const colors = ['#1d6fbf','#1a8a3a','#b07010','#bf3030'];
+
+  const datasets = YEARS.map((yr,i)=>{
+    let data;
+    if(sel==='total'){
+      data = USAGE_KWH.site[yr].map(v=>v!==null?Math.round(v/1000):null);
+    } else {
+      data = (USAGE_KWH.zones[sel]&&USAGE_KWH.zones[sel][yr])
+        ? USAGE_KWH.zones[sel][yr].map(v=>v!==null?Math.round(v/1000):null)
+        : Array(12).fill(null);
+    }
+    return{
+      label:yr+'년', data,
+      borderColor:colors[i], backgroundColor:colors[i].replace(')',',0.06)').replace('rgb','rgba'),
+      borderWidth:2, pointRadius:3, spanGaps:false, tension:0.3, fill:false
+    };
+  });
+
+  const ctx = document.getElementById('usageTrendChart').getContext('2d');
+  if(usageTrendInst){usageTrendInst.destroy();usageTrendInst=null;}
+  usageTrendInst = new Chart(ctx,{
+    type:'line',
+    data:{labels:MONTHS, datasets},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{labels:{color:'#4a5a72',font:{size:10,family:"'JetBrains Mono',monospace"},boxWidth:10,boxHeight:10,padding:14}},
+        tooltip:{backgroundColor:'#ffffff',borderColor:'#e2e6ed',borderWidth:1,titleColor:'#1a2332',bodyColor:'#4a5a72',padding:10,
+          callbacks:{label:c=>c.dataset.label+': '+(c.parsed.y!==null?c.parsed.y.toLocaleString()+' MWh':'데이터 없음')}}
+      },
+      scales:{
+        x:{ticks:{color:'#8a9ab4',font:{size:10,family:"'JetBrains Mono',monospace"}},grid:{color:'rgba(0,0,0,0.05)'},border:{color:'#e2e6ed'}},
+        y:{ticks:{callback:v=>v+'MWh',color:'#8a9ab4',font:{size:10,family:"'JetBrains Mono',monospace"}},grid:{color:'rgba(0,0,0,0.05)'},border:{color:'#e2e6ed'}}
+      }
+    }
+  });
+}
+
+// ── 사용량 현황표
+function renderUsageTable(yr){
+  const tbody = document.getElementById('usageTableBody');
+  const rows  = [];
+
+  // 사업장 전체
+  const siteRow = USAGE_KWH.site[yr];
+  const siteTotal = siteRow.filter(v=>v!==null).reduce((a,b)=>a+b,0);
+  rows.push({
+    label:'사업장 전체',
+    data: siteRow,
+    total: siteTotal,
+    color:'#1d6fbf',
+    bold: true
+  });
+
+  // Zone별
+  ZONE_NAMES.forEach((z,i)=>{
+    const d = USAGE_KWH.zones[z]&&USAGE_KWH.zones[z][yr]?USAGE_KWH.zones[z][yr]:Array(12).fill(null);
+    const t = d.filter(v=>v!==null).reduce((a,b)=>a+b,0);
+    rows.push({label:z, data:d, total:t, color:ZONE_COLORS_LIST[i], bold:false});
+  });
+
+  tbody.innerHTML = rows.map(row=>`
+    <tr style="${row.bold?'background:rgba(29,111,191,0.04)':''}">
+      <td style="font-weight:${row.bold?700:500};font-size:${row.bold?13:12}px">
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${row.color};margin-right:6px;vertical-align:middle"></span>
+        ${row.label}
+      </td>
+      ${row.data.map(v=>`<td class="right mono" style="font-size:11px;color:${v===null?'var(--text-muted)':'var(--text-primary)'}">${v!==null?Math.round(v/1000).toLocaleString():'—'}</td>`).join('')}
+      <td class="right mono" style="font-weight:600;color:${row.color};font-size:12px">${row.total?(row.total/1000).toFixed(0).toLocaleString():'—'}</td>
+    </tr>`).join('');
+}
+
+// ── 사용량 파일 업로드 처리 (KWh 시트 파싱)
+function handleUsageUpload(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  setSyncStatus('"'+file.name+'" 사용량 데이터 읽는 중...','loading');
+  const reader = new FileReader();
+  reader.onload = e => {
+    try{
+      const wb  = XLSX.read(e.target.result, {type:'array'});
+      const sheetMap = {'2023년':2023,'2024년':2024,'2025년':2025,'2026년':2026};
+      let updated = [];
+      wb.SheetNames.forEach(name=>{
+        const yr = sheetMap[name.trim()];
+        if(!yr) return;
+        const ws   = wb.Sheets[name];
+        const rows = XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
+        // SHV-102 행에서 kWh 컬럼 파싱
+        for(let i=0;i<rows.length;i++){
+          const row = rows[i];
+          if(!row) continue;
+          const panel = String(row[2]||'').trim();
+          if(panel!=='SHV-102') continue;
+          const kwhStart = yr===2023?8:9;  // KWh 컬럼 시작 (KW 다음)
+          const kwh = [];
+          for(let m=0;m<12;m++){
+            const v = row[kwhStart+m*2];
+            kwh.push((v===null||v===undefined||v==='')?null:parseFloat(v)||null);
+          }
+          USAGE_KWH.site[yr] = kwh;
+          updated.push(yr);
+          break;
+        }
+      });
+      setSyncStatus('사용량 데이터 반영 완료 — '+updated.join(', ')+'년','connected');
+      if(curPage==='usage') renderUsagePage();
+    }catch(err){
+      setSyncStatus('사용량 파일 파싱 오류: '+err.message,'error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  event.target.value='';
+}
 // Init
 renderZoneBtns();
 updateAll();
@@ -2564,6 +3152,7 @@ window.addEventListener('resize', ()=>{
   resizeTimer=setTimeout(()=>{
     if(curPage==='overview'){ updateBar(getActive()); updateLine(); updateCompare(); updateZonePie(); }
     if(curPage==='trend')updateTrendPage();
+    if(curPage==='usage')renderUsagePage();
   }, 250);
 });
 
